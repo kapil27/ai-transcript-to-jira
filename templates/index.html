@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JIRA CSV Generator - MVP</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .task-form {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        .labels-input {
+            height: 40px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .remove-btn {
+            background-color: #e74c3c;
+        }
+        .remove-btn:hover {
+            background-color: #c0392b;
+        }
+        .generate-btn {
+            background-color: #27ae60;
+            font-size: 16px;
+            padding: 15px 30px;
+        }
+        .generate-btn:hover {
+            background-color: #229954;
+        }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .task-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        .form-row .form-group {
+            flex: 1;
+        }
+        .error {
+            color: #e74c3c;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #fdf2f2;
+            border: 1px solid #e74c3c;
+            border-radius: 4px;
+        }
+        .success {
+            color: #27ae60;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f2fdf6;
+            border: 1px solid #27ae60;
+            border-radius: 4px;
+        }
+        
+        /* Tab styles */
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+        .tab {
+            padding: 12px 24px;
+            background-color: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            margin-right: 4px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .tab.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .tab:hover:not(.active) {
+            background-color: #e9ecef;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Q&A specific styles */
+        .qa-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .qa-question {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        .qa-context {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 8px;
+            padding-left: 10px;
+            border-left: 3px solid #bdc3c7;
+        }
+        .qa-answer {
+            color: #555;
+            margin-bottom: 8px;
+            padding-left: 20px;
+        }
+        .qa-meta {
+            font-size: 12px;
+            color: #7f8c8d;
+            display: flex;
+            justify-content: space-between;
+        }
+        .qa-status {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .qa-status.answered {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .qa-status.unanswered {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        /* Progress bar styles */
+        .progress-container {
+            display: none;
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .progress-container.active {
+            display: block;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        .progress-text {
+            font-size: 14px;
+            color: #495057;
+            text-align: center;
+            font-weight: 500;
+        }
+        .progress-steps {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>JIRA CSV Generator - MVP</h1>
+        <p style="text-align: center; color: #7f8c8d; margin-bottom: 30px;">
+            Generate JIRA tasks from meeting transcripts or enter them manually
+        </p>
+        
+        <!-- AI Transcript Section -->
+        <div style="background-color: #e8f4f8; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+            <h3 style="color: #2c3e50; margin-top: 0;">🤖 AI-Powered Transcript Processing</h3>
+            <p style="color: #555;">Paste your meeting transcript below and let AI extract actionable tasks:</p>
+            
+            <textarea id="transcript-input" placeholder="Paste your meeting transcript here...
+
+Example:
+Meeting: Sprint Planning
+John: Sarah, can you implement the user authentication API?
+Sarah: Sure, I can have that done by Friday.
+Mike: I noticed a bug in the login form - the button is misaligned.
+..." style="width: 100%; height: 120px; margin-bottom: 15px; font-family: monospace;"></textarea>
+
+            <!-- Additional Context Section -->
+            <div style="margin-top: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h4 style="color: #2c3e50; margin: 0;">📋 Additional Context (Optional)</h4>
+                    <div>
+                        <button onclick="showContextTemplates()" style="background-color: #6c757d; font-size: 12px; padding: 5px 10px; margin-right: 5px;">📝 Templates</button>
+                        <button onclick="validateContext()" style="background-color: #17a2b8; font-size: 12px; padding: 5px 10px; margin-right: 5px;">✅ Validate</button>
+                        <button onclick="saveProfile()" style="background-color: #28a745; font-size: 12px; padding: 5px 10px; margin-right: 5px;">💾 Save Profile</button>
+                        <button onclick="loadProfile()" style="background-color: #007bff; font-size: 12px; padding: 5px 10px; margin-right: 5px;">📂 Load Profile</button>
+                        <button onclick="clearContext()" style="background-color: #dc3545; font-size: 12px; padding: 5px 10px;">🗑️ Clear</button>
+                    </div>
+                </div>
+                
+                <p style="color: #666; font-size: 14px; margin-bottom: 10px;">
+                    Provide project context to help AI create better tasks and understand domain-specific terms:
+                </p>
+                
+                <!-- Context Quality Indicator -->
+                <div id="context-quality" style="display: none; margin-bottom: 10px; padding: 8px; border-radius: 4px; font-size: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span id="quality-text">Context Quality</span>
+                        <span id="quality-score">0%</span>
+                    </div>
+                    <div style="width: 100%; height: 4px; background-color: #e9ecef; border-radius: 2px; margin-top: 4px;">
+                        <div id="quality-bar" style="height: 100%; background-color: #28a745; border-radius: 2px; width: 0%; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+                
+                <textarea id="context-input" placeholder="Add relevant context such as:
+
+• Project requirements and specifications
+• Technical documentation or architecture notes  
+• Team member roles and expertise areas
+• Previous decisions or constraints
+• Domain-specific terminology
+• Related user stories or epics
+• Testing requirements or acceptance criteria
+
+Example:
+Project: E-commerce Platform
+Tech Stack: React + Node.js + PostgreSQL
+Team: Sarah (Frontend), Mike (Backend), Lisa (Designer)
+Current Sprint: User Authentication & Payment Integration
+Acceptance Criteria: All features must have unit tests
+
+💡 Click 'Templates' for pre-built project contexts!" style="width: 100%; height: 120px; margin-bottom: 10px; font-family: monospace; background-color: #f8f9fa; border: 1px solid #dee2e6;"></textarea>
+                
+                <!-- Context Suggestions -->
+                <div id="context-suggestions" style="display: none; margin-top: 10px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; font-size: 12px;">
+                    <strong>💡 Suggestions to improve context:</strong>
+                    <ul id="suggestions-list" style="margin: 5px 0 0 20px; padding: 0;"></ul>
+                </div>
+            </div>
+            
+            <button onclick="processTranscript()" style="background-color: #9b59b6; margin-right: 10px;">🔍 Extract Tasks</button>
+            <button onclick="extractQA()" style="background-color: #e67e22; margin-right: 10px;">❓ Extract Q&A</button>
+            <button onclick="processEnhanced()" style="background-color: #27ae60; margin-right: 10px;">🚀 Smart Extract (Tasks + Q&A)</button>
+            <span id="transcript-status" style="color: #666;"></span>
+            
+            <!-- Progress Bar -->
+            <div id="progress-container" class="progress-container">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <div id="progress-text" class="progress-text">Processing...</div>
+                <div id="progress-steps" class="progress-steps">Starting AI analysis...</div>
+            </div>
+        </div>
+        
+        <!-- Tab Navigation -->
+        <div class="tabs" style="margin-top: 30px;">
+            <button class="tab active" onclick="switchTab('tasks')">📝 Tasks</button>
+            <button class="tab" onclick="switchTab('qa')">❓ Questions & Answers</button>
+        </div>
+        
+        <!-- Tasks Tab Content -->
+        <div id="tasks-content" class="tab-content active">
+            <div id="tasks-container">
+                <!-- Tasks will be added here dynamically -->
+            </div>
+            
+            <button onclick="addTask()">+ Add Manual Task</button>
+            <button onclick="generateCSV()" class="generate-btn">Generate JIRA CSV</button>
+        </div>
+        
+        <!-- Q&A Tab Content -->
+        <div id="qa-content" class="tab-content">
+            <div id="qa-container">
+                <!-- Q&A items will be added here -->
+                <p style="color: #7f8c8d; text-align: center; padding: 40px;">
+                    No questions extracted yet. Use "Extract Q&A from Transcript" to analyze meeting questions.
+                </p>
+            </div>
+        </div>
+        
+        <div id="message"></div>
+        
+        <!-- Context Templates Modal -->
+        <div id="templates-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000;">
+            <div style="position: relative; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 30px; border-radius: 8px; max-width: 80%; max-height: 80%; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #e9ecef; padding-bottom: 15px;">
+                    <h3 style="color: #2c3e50; margin: 0;">📝 Context Templates</h3>
+                    <button onclick="closeTemplatesModal()" style="background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">&times;</button>
+                </div>
+                
+                <p style="color: #666; margin-bottom: 20px;">Choose a template that matches your project type:</p>
+                
+                <div id="templates-list">
+                    <!-- Templates will be loaded here -->
+                </div>
+                
+                <div style="margin-top: 20px; text-align: center; border-top: 1px solid #e9ecef; padding-top: 15px;">
+                    <button onclick="closeTemplatesModal()" style="background-color: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let taskCount = 0;
+
+        function addTask() {
+            taskCount++;
+            const taskHtml = `
+                <div class="task-form" id="task-${taskCount}">
+                    <div class="task-header">
+                        <span class="task-number">Task ${taskCount}</span>
+                        <button onclick="removeTask(${taskCount})" class="remove-btn">Remove</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="summary-${taskCount}">Summary (Required) *</label>
+                        <input type="text" id="summary-${taskCount}" placeholder="Brief description of the task" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description-${taskCount}">Description</label>
+                        <textarea id="description-${taskCount}" placeholder="Detailed description of the task"></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="issue-type-${taskCount}">Issue Type</label>
+                            <select id="issue-type-${taskCount}">
+                                <option value="">Select type</option>
+                                <option value="Story">Story</option>
+                                <option value="Task">Task</option>
+                                <option value="Bug">Bug</option>
+                                <option value="Epic">Epic</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="reporter-${taskCount}">Reporter Email</label>
+                            <input type="email" id="reporter-${taskCount}" placeholder="reporter@example.com">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="due-date-${taskCount}">Due Date</label>
+                        <input type="date" id="due-date-${taskCount}">
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('tasks-container').insertAdjacentHTML('beforeend', taskHtml);
+        }
+
+        function removeTask(taskId) {
+            document.getElementById(`task-${taskId}`).remove();
+        }
+
+        function generateCSV() {
+            const tasks = [];
+            const taskForms = document.querySelectorAll('.task-form');
+            
+            if (taskForms.length === 0) {
+                showMessage('Please add at least one task before generating CSV.', 'error');
+                return;
+            }
+            
+            for (let form of taskForms) {
+                const taskId = form.id.split('-')[1];
+                const summary = document.getElementById(`summary-${taskId}`).value;
+                
+                if (!summary.trim()) {
+                    showMessage(`Task ${taskId}: Summary is required.`, 'error');
+                    return;
+                }
+                
+                const task = {
+                    summary: summary,
+                    description: document.getElementById(`description-${taskId}`).value,
+                    issue_type: document.getElementById(`issue-type-${taskId}`).value,
+                    reporter: document.getElementById(`reporter-${taskId}`).value,
+                    due_date: document.getElementById(`due-date-${taskId}`).value,
+                };
+                
+                tasks.push(task);
+            }
+            
+            // Send request to backend
+            fetch('/api/generate-csv', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ tasks: tasks })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => Promise.reject(err));
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `jira_import_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                showMessage('CSV file generated successfully!', 'success');
+            })
+            .catch(error => {
+                showMessage(`Error: ${error.error || 'Failed to generate CSV'}`, 'error');
+            });
+        }
+
+        function processTranscript() {
+            const transcriptText = document.getElementById('transcript-input').value.trim();
+            const contextText = document.getElementById('context-input').value.trim();
+            const statusSpan = document.getElementById('transcript-status');
+            
+            if (!transcriptText) {
+                showMessage('Please enter a transcript to process.', 'error');
+                return;
+            }
+            
+            // Show progress bar and simulate progress
+            showProgress();
+            statusSpan.textContent = contextText ? 'Processing transcript with additional context...' : 'Processing transcript with AI...';
+            
+            const progressSteps = [
+                { text: 'Analyzing transcript...', step: 'AI is reading and understanding the meeting content' },
+                { text: 'Identifying action items...', step: 'Looking for tasks, assignments, and work items' },
+                { text: 'Extracting task details...', step: 'Gathering descriptions, assignees, and due dates' },
+                { text: 'Finalizing results...', step: 'Validating and formatting extracted tasks' }
+            ];
+            
+            // Start progress simulation
+            simulateProgress(8000, progressSteps);
+            
+            // Clear existing tasks first
+            document.getElementById('tasks-container').innerHTML = '';
+            taskCount = 0;
+            
+            fetch('/api/parse-transcript', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    transcript: transcriptText,
+                    context: contextText 
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => Promise.reject(err));
+                }
+                return response.json();
+            })
+            .then(data => {
+                hideProgress();
+                statusSpan.textContent = `✅ Extracted ${data.count} tasks from transcript`;
+                
+                if (data.tasks && data.tasks.length > 0) {
+                    // Add tasks to the form
+                    data.tasks.forEach(task => {
+                        addTaskFromAI(task);
+                    });
+                    showMessage(`Successfully extracted ${data.tasks.length} tasks from transcript!`, 'success');
+                } else {
+                    showMessage('No actionable tasks found in the transcript.', 'error');
+                }
+            })
+            .catch(error => {
+                hideProgress();
+                statusSpan.textContent = '❌ Failed to process transcript';
+                showMessage(`Error: ${error.error || 'Failed to process transcript'}`, 'error');
+            });
+        }
+        
+        function addTaskFromAI(task) {
+            taskCount++;
+            const taskHtml = `
+                <div class="task-form" id="task-${taskCount}">
+                    <div class="task-header">
+                        <span class="task-number">Task ${taskCount} (from AI)</span>
+                        <button onclick="removeTask(${taskCount})" class="remove-btn">Remove</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="summary-${taskCount}">Summary (Required) *</label>
+                        <input type="text" id="summary-${taskCount}" value="${task.summary || ''}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description-${taskCount}">Description</label>
+                        <textarea id="description-${taskCount}">${task.description || ''}</textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="issue-type-${taskCount}">Issue Type</label>
+                            <select id="issue-type-${taskCount}">
+                                <option value="">Select type</option>
+                                <option value="Story" ${task.issue_type === 'Story' ? 'selected' : ''}>Story</option>
+                                <option value="Task" ${task.issue_type === 'Task' ? 'selected' : ''}>Task</option>
+                                <option value="Bug" ${task.issue_type === 'Bug' ? 'selected' : ''}>Bug</option>
+                                <option value="Epic" ${task.issue_type === 'Epic' ? 'selected' : ''}>Epic</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="reporter-${taskCount}">Reporter Email</label>
+                            <input type="email" id="reporter-${taskCount}" value="${task.reporter || ''}" placeholder="reporter@example.com">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="due-date-${taskCount}">Due Date</label>
+                        <input type="date" id="due-date-${taskCount}" value="${task.due_date || ''}">
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('tasks-container').insertAdjacentHTML('beforeend', taskHtml);
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+        
+        function showProgress() {
+            document.getElementById('progress-container').classList.add('active');
+            document.getElementById('progress-fill').style.width = '0%';
+            document.getElementById('progress-text').textContent = 'Processing...';
+            document.getElementById('progress-steps').textContent = 'Starting AI analysis...';
+        }
+        
+        function updateProgress(percentage, text, step) {
+            document.getElementById('progress-fill').style.width = percentage + '%';
+            document.getElementById('progress-text').textContent = text;
+            document.getElementById('progress-steps').textContent = step;
+        }
+        
+        function hideProgress() {
+            document.getElementById('progress-container').classList.remove('active');
+        }
+        
+        function simulateProgress(duration, steps) {
+            return new Promise((resolve) => {
+                let currentStep = 0;
+                const stepDuration = duration / steps.length;
+                
+                const interval = setInterval(() => {
+                    if (currentStep < steps.length) {
+                        const percentage = ((currentStep + 1) / steps.length) * 100;
+                        updateProgress(percentage, steps[currentStep].text, steps[currentStep].step);
+                        currentStep++;
+                    } else {
+                        clearInterval(interval);
+                        resolve();
+                    }
+                }, stepDuration);
+            });
+        }
+
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-content').classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+        
+        function extractQA() {
+            const transcriptText = document.getElementById('transcript-input').value.trim();
+            const contextText = document.getElementById('context-input').value.trim();
+            const statusSpan = document.getElementById('transcript-status');
+            
+            if (!transcriptText) {
+                showMessage('Please enter a transcript to process.', 'error');
+                return;
+            }
+            
+            // Show progress for Q&A extraction
+            showProgress();
+            statusSpan.textContent = contextText ? 'Extracting Q&A with additional context...' : 'Extracting Q&A with AI...';
+            
+            const qaProgressSteps = [
+                { text: 'Scanning for questions...', step: 'Identifying all questions asked during the meeting' },
+                { text: 'Finding answers...', step: 'Looking for responses and context in the transcript' },
+                { text: 'Organizing Q&A pairs...', step: 'Matching questions with answers and gathering context' }
+            ];
+            
+            simulateProgress(6000, qaProgressSteps);
+            
+            fetch('/api/extract-qa', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    transcript: transcriptText,
+                    context: contextText 
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => Promise.reject(err));
+                }
+                return response.json();
+            })
+            .then(data => {
+                hideProgress();
+                statusSpan.textContent = `✅ Extracted ${data.count} Q&A items`;
+                
+                displayQAItems(data.qa_items);
+                
+                // Switch to Q&A tab
+                switchTab('qa');
+                
+                if (data.qa_items && data.qa_items.length > 0) {
+                    showMessage(`Successfully extracted ${data.qa_items.length} questions and answers!`, 'success');
+                } else {
+                    showMessage('No questions found in the transcript.', 'error');
+                }
+            })
+            .catch(error => {
+                hideProgress();
+                statusSpan.textContent = '❌ Failed to extract Q&A';
+                showMessage(`Error: ${error.error || 'Failed to extract Q&A'}`, 'error');
+            });
+        }
+        
+        function displayQAItems(qaItems) {
+            const qaContainer = document.getElementById('qa-container');
+            
+            if (!qaItems || qaItems.length === 0) {
+                qaContainer.innerHTML = `
+                    <p style="color: #7f8c8d; text-align: center; padding: 40px;">
+                        No questions found in the transcript.
+                    </p>
+                `;
+                return;
+            }
+            
+            let qaHtml = '';
+            qaItems.forEach((qa, index) => {
+                qaHtml += `
+                    <div class="qa-item">
+                        <div class="qa-question">Q${index + 1}: ${qa.question}</div>
+                        ${qa.context ? `<div class="qa-context">Context: ${qa.context}</div>` : ''}
+                        <div class="qa-answer">
+                            ${qa.answer ? `<strong>A:</strong> ${qa.answer}` : '<em>Answer will be provided later</em>'}
+                        </div>
+                        <div class="qa-meta">
+                            <span>Asked by: ${qa.asked_by}</span>
+                            <span>
+                                ${qa.answered_by ? `Answered by: ${qa.answered_by}` : ''}
+                                <span class="qa-status ${qa.status}">${qa.status}</span>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            qaContainer.innerHTML = qaHtml;
+        }
+        
+        function processEnhanced() {
+            const transcriptText = document.getElementById('transcript-input').value.trim();
+            const contextText = document.getElementById('context-input').value.trim();
+            const statusSpan = document.getElementById('transcript-status');
+            
+            if (!transcriptText) {
+                showMessage('Please enter a transcript to process.', 'error');
+                return;
+            }
+            
+            // Show enhanced progress bar
+            showProgress();
+            statusSpan.textContent = contextText ? 'Smart processing with additional context...' : 'Smart processing with Q&A context...';
+            
+            const enhancedProgressSteps = [
+                { text: 'Analyzing transcript...', step: 'AI is reading and understanding the meeting content' },
+                { text: 'Extracting questions...', step: 'Identifying all questions and gathering context' },
+                { text: 'Finding answers...', step: 'Matching questions with responses from the meeting' },
+                { text: 'Enhancing task extraction...', step: 'Using Q&A context to create better tasks' },
+                { text: 'Generating follow-up tasks...', step: 'Creating tasks for unanswered questions' },
+                { text: 'Finalizing results...', step: 'Validating and organizing all extracted content' }
+            ];
+            
+            simulateProgress(12000, enhancedProgressSteps);
+            
+            // Clear existing content
+            document.getElementById('tasks-container').innerHTML = '';
+            document.getElementById('qa-container').innerHTML = '';
+            taskCount = 0;
+            
+            fetch('/api/process-enhanced', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    transcript: transcriptText,
+                    context: contextText 
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => Promise.reject(err));
+                }
+                return response.json();
+            })
+            .then(data => {
+                hideProgress();
+                statusSpan.textContent = `✅ Smart extraction: ${data.tasks_count} tasks, ${data.qa_count} Q&A items`;
+                
+                // Add tasks to the tasks tab
+                if (data.tasks && data.tasks.length > 0) {
+                    data.tasks.forEach(task => {
+                        addTaskFromAI(task);
+                    });
+                }
+                
+                // Add Q&A to the Q&A tab
+                displayQAItems(data.qa_items);
+                
+                // Switch to tasks tab first
+                switchTab('tasks');
+                
+                showMessage(`Smart extraction complete! ${data.tasks_count} tasks and ${data.qa_count} questions found.`, 'success');
+            })
+            .catch(error => {
+                hideProgress();
+                statusSpan.textContent = '❌ Failed to process transcript';
+                showMessage(`Error: ${error.error || 'Failed to process transcript'}`, 'error');
+            });
+        }
+
+        // Add initial task only if no transcript processing
+        if (document.getElementById('tasks-container').children.length === 0) {
+            addTask();
+        }
+        
+        // Context Management Functions
+        function showContextTemplates() {
+            fetch('/api/context/templates')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayTemplates(data.templates);
+                        document.getElementById('templates-modal').style.display = 'block';
+                    } else {
+                        showMessage('Failed to load templates', 'error');
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error loading templates: ' + error.message, 'error');
+                });
+        }
+        
+        function displayTemplates(templates) {
+            const templatesList = document.getElementById('templates-list');
+            let templatesHtml = '';
+            
+            templates.forEach(template => {
+                templatesHtml += `
+                    <div style="border: 1px solid #dee2e6; border-radius: 8px; margin-bottom: 15px; overflow: hidden;">
+                        <div style="background-color: #f8f9fa; padding: 15px; border-bottom: 1px solid #dee2e6;">
+                            <h4 style="margin: 0 0 5px 0; color: #2c3e50;">${template.name}</h4>
+                            <p style="margin: 0; color: #666; font-size: 14px;">${template.description}</p>
+                        </div>
+                        <div style="padding: 15px; text-align: right;">
+                            <button onclick="previewTemplate('${template.key}')" style="background-color: #17a2b8; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-right: 10px;">👁️ Preview</button>
+                            <button onclick="useTemplate('${template.key}')" style="background-color: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">✅ Use Template</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            templatesList.innerHTML = templatesHtml;
+        }
+        
+        function useTemplate(templateKey) {
+            fetch(`/api/context/template/${templateKey}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('context-input').value = data.content;
+                        closeTemplatesModal();
+                        validateContext(); // Auto-validate after loading template
+                        showMessage(`Template "${templateKey}" loaded successfully!`, 'success');
+                    } else {
+                        showMessage('Failed to load template', 'error');
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error loading template: ' + error.message, 'error');
+                });
+        }
+        
+        function previewTemplate(templateKey) {
+            fetch(`/api/context/template/${templateKey}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show preview in a simple alert (could be enhanced with modal)
+                        const preview = data.content.length > 300 ? 
+                            data.content.substring(0, 300) + '...' : 
+                            data.content;
+                        alert(`Template Preview:\n\n${preview}`);
+                    } else {
+                        showMessage('Failed to preview template', 'error');
+                    }
+                })
+                .catch(error => {
+                    showMessage('Error previewing template: ' + error.message, 'error');
+                });
+        }
+        
+        function closeTemplatesModal() {
+            document.getElementById('templates-modal').style.display = 'none';
+        }
+        
+        function validateContext() {
+            const context = document.getElementById('context-input').value.trim();
+            
+            if (!context) {
+                hideContextQuality();
+                return;
+            }
+            
+            fetch('/api/context/validate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ context: context })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayContextValidation(data.validation);
+                } else {
+                    showMessage('Failed to validate context', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('Error validating context: ' + error.message, 'error');
+            });
+        }
+        
+        function displayContextValidation(validation) {
+            const qualityDiv = document.getElementById('context-quality');
+            const qualityText = document.getElementById('quality-text');
+            const qualityScore = document.getElementById('quality-score');
+            const qualityBar = document.getElementById('quality-bar');
+            const suggestionsDiv = document.getElementById('context-suggestions');
+            const suggestionsList = document.getElementById('suggestions-list');
+            
+            // Show quality indicator
+            qualityDiv.style.display = 'block';
+            qualityScore.textContent = validation.quality_score + '%';
+            qualityBar.style.width = validation.quality_score + '%';
+            
+            // Color coding for quality
+            if (validation.quality_score >= 80) {
+                qualityDiv.style.backgroundColor = '#d4edda';
+                qualityDiv.style.borderColor = '#c3e6cb';
+                qualityText.textContent = 'Excellent Context Quality';
+                qualityBar.style.backgroundColor = '#28a745';
+            } else if (validation.quality_score >= 60) {
+                qualityDiv.style.backgroundColor = '#fff3cd';
+                qualityDiv.style.borderColor = '#ffeaa7';
+                qualityText.textContent = 'Good Context Quality';
+                qualityBar.style.backgroundColor = '#ffc107';
+            } else {
+                qualityDiv.style.backgroundColor = '#f8d7da';
+                qualityDiv.style.borderColor = '#f5c6cb';
+                qualityText.textContent = 'Context Needs Improvement';
+                qualityBar.style.backgroundColor = '#dc3545';
+            }
+            
+            // Show suggestions if any
+            if (validation.suggestions && validation.suggestions.length > 0) {
+                suggestionsDiv.style.display = 'block';
+                let suggestionsHtml = '';
+                validation.suggestions.forEach(suggestion => {
+                    suggestionsHtml += `<li>${suggestion}</li>`;
+                });
+                suggestionsList.innerHTML = suggestionsHtml;
+            } else {
+                suggestionsDiv.style.display = 'none';
+            }
+        }
+        
+        function hideContextQuality() {
+            document.getElementById('context-quality').style.display = 'none';
+            document.getElementById('context-suggestions').style.display = 'none';
+        }
+        
+        function clearContext() {
+            if (confirm('Are you sure you want to clear the context?')) {
+                document.getElementById('context-input').value = '';
+                hideContextQuality();
+                showMessage('Context cleared', 'success');
+            }
+        }
+        
+        // Auto-validate context on input (debounced)
+        let contextValidationTimeout;
+        document.getElementById('context-input').addEventListener('input', function() {
+            clearTimeout(contextValidationTimeout);
+            contextValidationTimeout = setTimeout(validateContext, 1000); // Validate after 1 second of no typing
+        });
+        
+        // Project Profile Management
+        function saveProfile() {
+            const context = document.getElementById('context-input').value.trim();
+            if (!context) {
+                showMessage('No context to save. Please add some context first.', 'error');
+                return;
+            }
+            
+            const profileName = prompt('Enter a name for this project profile:');
+            if (!profileName) return;
+            
+            try {
+                // Get existing profiles or create empty object
+                const profiles = JSON.parse(localStorage.getItem('jira_project_profiles') || '{}');
+                
+                // Save the profile
+                profiles[profileName] = {
+                    context: context,
+                    created: new Date().toISOString(),
+                    lastUsed: new Date().toISOString()
+                };
+                
+                localStorage.setItem('jira_project_profiles', JSON.stringify(profiles));
+                showMessage(`Profile "${profileName}" saved successfully!`, 'success');
+                
+            } catch (error) {
+                showMessage('Failed to save profile: ' + error.message, 'error');
+            }
+        }
+        
+        function loadProfile() {
+            try {
+                const profiles = JSON.parse(localStorage.getItem('jira_project_profiles') || '{}');
+                const profileNames = Object.keys(profiles);
+                
+                if (profileNames.length === 0) {
+                    showMessage('No saved profiles found. Save a profile first!', 'error');
+                    return;
+                }
+                
+                // Create selection dialog
+                let profileList = 'Available profiles:\\n\\n';
+                profileNames.forEach((name, index) => {
+                    const profile = profiles[name];
+                    const preview = profile.context.length > 50 ? 
+                        profile.context.substring(0, 50) + '...' : 
+                        profile.context;
+                    profileList += `${index + 1}. ${name}\\n   Preview: ${preview}\\n   Created: ${new Date(profile.created).toLocaleDateString()}\\n\\n`;
+                });
+                
+                const selection = prompt(profileList + 'Enter the number of the profile to load:');
+                if (!selection) return;
+                
+                const profileIndex = parseInt(selection) - 1;
+                if (profileIndex < 0 || profileIndex >= profileNames.length) {
+                    showMessage('Invalid selection. Please try again.', 'error');
+                    return;
+                }
+                
+                const selectedProfileName = profileNames[profileIndex];
+                const selectedProfile = profiles[selectedProfileName];
+                
+                // Load the profile
+                document.getElementById('context-input').value = selectedProfile.context;
+                
+                // Update last used time
+                selectedProfile.lastUsed = new Date().toISOString();
+                profiles[selectedProfileName] = selectedProfile;
+                localStorage.setItem('jira_project_profiles', JSON.stringify(profiles));
+                
+                // Auto-validate after loading
+                validateContext();
+                showMessage(`Profile "${selectedProfileName}" loaded successfully!`, 'success');
+                
+            } catch (error) {
+                showMessage('Failed to load profile: ' + error.message, 'error');
+            }
+        }
+        
+        // Auto-load last used profile on page load
+        window.addEventListener('load', function() {
+            try {
+                const profiles = JSON.parse(localStorage.getItem('jira_project_profiles') || '{}');
+                if (Object.keys(profiles).length === 0) return;
+                
+                // Find most recently used profile
+                let lastUsedProfile = null;
+                let lastUsedTime = 0;
+                
+                Object.entries(profiles).forEach(([name, profile]) => {
+                    const usedTime = new Date(profile.lastUsed || profile.created).getTime();
+                    if (usedTime > lastUsedTime) {
+                        lastUsedTime = usedTime;
+                        lastUsedProfile = { name, profile };
+                    }
+                });
+                
+                if (lastUsedProfile && !document.getElementById('context-input').value.trim()) {
+                    // Auto-load only if context is empty
+                    document.getElementById('context-input').value = lastUsedProfile.profile.context;
+                    setTimeout(validateContext, 500); // Validate after a short delay
+                    
+                    // Show subtle notification
+                    const statusSpan = document.getElementById('transcript-status');
+                    statusSpan.textContent = `📂 Auto-loaded profile: ${lastUsedProfile.name}`;
+                    statusSpan.style.color = '#28a745';
+                    setTimeout(() => {
+                        statusSpan.textContent = '';
+                        statusSpan.style.color = '#666';
+                    }, 3000);
+                }
+                
+            } catch (error) {
+                console.log('No saved profiles to auto-load');
+            }
+        });
+    </script>
+</body>
+</html>
