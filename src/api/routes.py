@@ -4,8 +4,8 @@ from flask import Blueprint, request, jsonify, Response
 from typing import Dict, Any
 
 from ..config import get_config
-from ..services import TranscriptAnalysisService, CSVGenerationService, ContextService
-from ..exceptions import TranscriptError, AIServiceError, CSVGenerationError, ValidationError
+from ..services import TranscriptAnalysisService, CSVGenerationService, ContextService, ExportService, CacheService, DocumentParsingService
+from ..exceptions import TranscriptError, AIServiceError, CSVGenerationError, ValidationError, ExportError
 from ..utils import LoggerMixin
 
 
@@ -18,6 +18,9 @@ class APIRoutes(LoggerMixin):
         self.transcript_service = TranscriptAnalysisService(self.config)
         self.csv_service = CSVGenerationService()
         self.context_service = ContextService()
+        self.export_service = ExportService()
+        self.cache_service = CacheService()
+        self.document_service = DocumentParsingService()
         self.blueprint = self._create_blueprint()
     
     def _create_blueprint(self) -> Blueprint:
@@ -32,8 +35,13 @@ class APIRoutes(LoggerMixin):
         api.add_url_rule('/extract-qa', 'extract_qa', self.extract_qa, methods=['POST'])
         api.add_url_rule('/process-enhanced', 'process_enhanced', self.process_enhanced, methods=['POST'])
         
-        # CSV generation endpoint
+        # CSV generation endpoint (legacy)
         api.add_url_rule('/generate-csv', 'generate_csv', self.generate_csv, methods=['POST'])
+        
+        # Enhanced export endpoints
+        api.add_url_rule('/export', 'export_data', self.export_data, methods=['POST'])
+        api.add_url_rule('/export/formats', 'get_export_formats', self.get_export_formats, methods=['GET'])
+        api.add_url_rule('/export/templates', 'get_export_templates', self.get_export_templates, methods=['GET'])
         
         # Service status endpoint
         api.add_url_rule('/status', 'status', self.get_status, methods=['GET'])
@@ -43,6 +51,17 @@ class APIRoutes(LoggerMixin):
         api.add_url_rule('/context/template/<template_key>', 'get_template', self.get_context_template, methods=['GET'])
         api.add_url_rule('/context/validate', 'validate_context', self.validate_context, methods=['POST'])
         api.add_url_rule('/context/enhance', 'enhance_context', self.enhance_context, methods=['POST'])
+        
+        # Cache management endpoints
+        api.add_url_rule('/cache/stats', 'get_cache_stats', self.get_cache_stats, methods=['GET'])
+        api.add_url_rule('/cache/clear', 'clear_cache', self.clear_cache, methods=['POST'])
+        api.add_url_rule('/cache/clear/<pattern>', 'clear_cache_pattern', self.clear_cache_pattern, methods=['DELETE'])
+        
+        # File upload and document parsing endpoints
+        api.add_url_rule('/upload/validate', 'validate_file', self.validate_file, methods=['POST'])
+        api.add_url_rule('/upload/parse', 'parse_document', self.parse_document, methods=['POST'])
+        api.add_url_rule('/upload/process', 'process_document', self.process_document, methods=['POST'])
+        api.add_url_rule('/upload/formats', 'get_supported_formats', self.get_supported_formats, methods=['GET'])
         
         return api
     
@@ -262,6 +281,224 @@ class APIRoutes(LoggerMixin):
         except Exception as e:
             self.logger.error(f"Error enhancing context: {e}")
             return jsonify({'error': 'Failed to enhance context'}), 500
+    
+    def export_data(self) -> Response:
+        """Enhanced export endpoint supporting multiple formats."""
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Request data is required'}), 400
+            
+            tasks = data.get('tasks', [])
+            qa_items = data.get('qa_items', [])
+            export_format = data.get('format', 'csv').lower()
+            template = data.get('template', 'standard').lower()
+            
+            if not tasks and not qa_items:
+                return jsonify({'error': 'Either tasks or qa_items must be provided'}), 400
+            
+            # Export data
+            content_bytes, filename, mimetype = self.export_service.export_data(
+                tasks=tasks,
+                qa_items=qa_items,
+                export_format=export_format,
+                template=template
+            )
+            
+            return Response(
+                content_bytes,
+                mimetype=mimetype,
+                headers={'Content-Disposition': f'attachment; filename={filename}'}
+            )
+            
+        except ValidationError as e:
+            self.logger.error(f"Validation error: {e}")
+            return jsonify({'error': str(e)}), 400
+        except ExportError as e:
+            self.logger.error(f"Export error: {e}")
+            return jsonify({'error': 'Failed to export data'}), 500
+        except Exception as e:
+            self.logger.error(f"Unexpected error in export_data: {e}")
+            return jsonify({'error': 'Internal server error'}), 500
+    
+    def get_export_formats(self) -> Dict[str, Any]:
+        """Get supported export formats."""
+        try:
+            formats = self.export_service.get_supported_formats()
+            return jsonify({
+                'success': True,
+                'formats': formats
+            })
+            
+        except Exception as e:
+            self.logger.error(f"Error getting export formats: {e}")
+            return jsonify({'error': 'Failed to get export formats'}), 500
+    
+    def get_export_templates(self) -> Dict[str, Any]:
+        """Get supported export templates."""
+        try:
+            templates = self.export_service.get_supported_templates()
+            return jsonify({
+                'success': True,
+                'templates': templates
+            })
+            
+        except Exception as e:
+            self.logger.error(f"Error getting export templates: {e}")
+            return jsonify({'error': 'Failed to get export templates'}), 500
+    
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Get cache statistics and performance metrics."""
+        try:
+            stats = self.cache_service.get_stats()
+            return jsonify({
+                'success': True,
+                'cache_stats': stats
+            })
+            
+        except Exception as e:
+            self.logger.error(f"Error getting cache stats: {e}")
+            return jsonify({'error': 'Failed to get cache statistics'}), 500
+    
+    def clear_cache(self) -> Dict[str, Any]:
+        """Clear all cache data."""
+        try:
+            success = self.cache_service.clear_all()
+            return jsonify({
+                'success': success,
+                'message': 'All cache data cleared' if success else 'Cache clearing failed'
+            })
+            
+        except Exception as e:
+            self.logger.error(f"Error clearing cache: {e}")
+            return jsonify({'error': 'Failed to clear cache'}), 500
+    
+    def clear_cache_pattern(self, pattern: str) -> Dict[str, Any]:
+        """Clear cache entries matching pattern."""
+        try:
+            deleted_count = self.cache_service.invalidate_pattern(pattern)
+            return jsonify({
+                'success': True,
+                'deleted_count': deleted_count,
+                'pattern': pattern
+            })
+            
+        except Exception as e:
+            self.logger.error(f"Error clearing cache pattern {pattern}: {e}")
+            return jsonify({'error': 'Failed to clear cache pattern'}), 500
+    
+    def validate_file(self) -> Dict[str, Any]:
+        """Validate uploaded file without parsing."""
+        try:
+            if 'file' not in request.files:
+                return jsonify({'error': 'No file provided'}), 400
+            
+            file = request.files['file']
+            if file.filename == '':
+                return jsonify({'error': 'No file selected'}), 400
+            
+            # Read file data
+            file_data = file.read()
+            file.seek(0)  # Reset file pointer
+            
+            # Validate file
+            validation_result = self.document_service.validate_file(file_data, file.filename)
+            
+            return jsonify({
+                'success': True,
+                'validation': validation_result
+            })
+            
+        except Exception as e:
+            self.logger.error(f"File validation error: {e}")
+            return jsonify({'error': 'File validation failed'}), 500
+    
+    def parse_document(self) -> Dict[str, Any]:
+        """Parse document and extract text content."""
+        try:
+            if 'file' not in request.files:
+                return jsonify({'error': 'No file provided'}), 400
+            
+            file = request.files['file']
+            if file.filename == '':
+                return jsonify({'error': 'No file selected'}), 400
+            
+            # Read file data
+            file_data = file.read()
+            
+            # Parse document
+            parse_result = self.document_service.parse_document(file_data, file.filename)
+            
+            return jsonify({
+                'success': True,
+                'result': parse_result
+            })
+            
+        except ValidationError as e:
+            self.logger.error(f"Document parsing validation error: {e}")
+            return jsonify({'error': str(e)}), 400
+        except Exception as e:
+            self.logger.error(f"Document parsing error: {e}")
+            return jsonify({'error': 'Document parsing failed'}), 500
+    
+    def process_document(self) -> Dict[str, Any]:
+        """Parse document and process with AI for task extraction."""
+        try:
+            if 'file' not in request.files:
+                return jsonify({'error': 'No file provided'}), 400
+            
+            file = request.files['file']
+            if file.filename == '':
+                return jsonify({'error': 'No file selected'}), 400
+            
+            # Get optional context from form data
+            context = request.form.get('context', '')
+            
+            # Read and parse document
+            file_data = file.read()
+            parse_result = self.document_service.parse_document(file_data, file.filename)
+            
+            # Extract transcript text
+            transcript_text = parse_result['text']
+            
+            # Process with AI
+            analysis_result = self.transcript_service.analyze_transcript(transcript_text, context)
+            
+            # Combine results
+            result = {
+                'document_info': parse_result['metadata'],
+                'transcript_text': transcript_text,
+                'analysis': analysis_result,
+                'success': True
+            }
+            
+            return jsonify(result)
+            
+        except ValidationError as e:
+            self.logger.error(f"Document processing validation error: {e}")
+            return jsonify({'error': str(e)}), 400
+        except (TranscriptError, AIServiceError) as e:
+            self.logger.error(f"AI processing error: {e}")
+            return jsonify({'error': f'AI processing failed: {str(e)}'}), 503
+        except Exception as e:
+            self.logger.error(f"Document processing error: {e}")
+            return jsonify({'error': 'Document processing failed'}), 500
+    
+    def get_supported_formats(self) -> Dict[str, Any]:
+        """Get supported file formats and parsing capabilities."""
+        try:
+            formats = self.document_service.get_supported_formats()
+            stats = self.document_service.get_parsing_stats()
+            
+            return jsonify({
+                'success': True,
+                'supported_formats': formats,
+                'parsing_stats': stats
+            })
+            
+        except Exception as e:
+            self.logger.error(f"Error getting supported formats: {e}")
+            return jsonify({'error': 'Failed to get supported formats'}), 500
 
 
 def create_api_blueprint() -> Blueprint:

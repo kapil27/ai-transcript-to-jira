@@ -6,6 +6,7 @@ from ..config import AppConfig
 from ..exceptions import TranscriptError, AIServiceError
 from ..utils import LoggerMixin
 from .ai_service import AIService, OllamaService
+from .cache_service import CacheService
 
 
 class TranscriptAnalysisService(LoggerMixin):
@@ -21,6 +22,7 @@ class TranscriptAnalysisService(LoggerMixin):
         """
         self.config = config
         self.ai_service = ai_service or OllamaService(config)
+        self._cache_service = CacheService()
     
     def analyze_transcript(self, transcript: str, context: str = "") -> Dict[str, Any]:
         """
@@ -40,6 +42,12 @@ class TranscriptAnalysisService(LoggerMixin):
         if not transcript.strip():
             raise TranscriptError("Transcript cannot be empty")
         
+        # Check cache first for complete analysis
+        cached_analysis = self._cache_service.get_transcript_analysis(transcript, context)
+        if cached_analysis:
+            self.logger.info("Returning cached transcript analysis")
+            return cached_analysis
+        
         self.logger.info("Starting comprehensive transcript analysis")
         
         try:
@@ -56,6 +64,10 @@ class TranscriptAnalysisService(LoggerMixin):
             }
             
             self.logger.info(f"Analysis complete: {len(tasks)} tasks, {len(qa_items)} Q&A items")
+            
+            # Cache the complete analysis result
+            self._cache_service.cache_transcript_analysis(transcript, context, result)
+            
             return result
             
         except Exception as e:

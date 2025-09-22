@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 from ..config import AppConfig
 from ..exceptions import AIServiceError, TranscriptError
 from ..utils import LoggerMixin
+from .cache_service import CacheService, cached_ai_response
 
 
 class AIService(ABC, LoggerMixin):
@@ -41,7 +42,9 @@ class OllamaService(AIService):
         """
         self.config = config
         self.api_url = f"{config.ollama.base_url}/api/generate"
+        self._cache_service = CacheService()
     
+    @cached_ai_response("parse_transcript")
     def parse_transcript(self, transcript: str, context: str = "") -> List[Dict[str, Any]]:
         """
         Extract actionable tasks from meeting transcript.
@@ -90,6 +93,7 @@ class OllamaService(AIService):
             self.logger.error(f"Error parsing transcript: {e}")
             raise AIServiceError(f"Failed to parse transcript: {str(e)}")
     
+    @cached_ai_response("extract_questions")
     def extract_questions(self, transcript: str, context: str = "") -> List[Dict[str, Any]]:
         """
         Extract questions and answers from meeting transcript.
@@ -201,6 +205,7 @@ Use this context to:
         
         return base_prompt
     
+    @cached_ai_response("extract_tasks_iteratively")
     def _extract_tasks_iteratively(self, transcript: str, context: str = "") -> List[Dict[str, Any]]:
         """Extract tasks using iterative approach."""
         base_list_prompt = f"""Read this meeting transcript and list all actionable tasks/assignments:
@@ -281,6 +286,7 @@ Use this context to enhance the task description and ensure proper categorizatio
         except Exception:
             return []
     
+    @cached_ai_response("extract_qa_iteratively")
     def _extract_qa_iteratively(self, transcript: str, context: str = "") -> List[Dict[str, Any]]:
         """Extract Q&A using iterative approach."""
         base_questions_prompt = f"""Read this meeting transcript and list all questions asked by anyone:

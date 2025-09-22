@@ -29,3 +29,8 @@ class ConfigurationError(JiraCSVGeneratorError):
 class CSVGenerationError(JiraCSVGeneratorError):
     """Errors related to CSV file generation."""
     pass
+
+
+class ExportError(JiraCSVGeneratorError):
+    """Errors related to data export operations."""
+    pass

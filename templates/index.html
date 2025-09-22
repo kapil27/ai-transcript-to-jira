@@ -80,6 +80,160 @@
         .generate-btn:hover {
             background-color: #229954;
         }
+        .export-section {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .export-section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .export-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .export-buttons {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .legacy-btn {
+            background-color: #95a5a6;
+            font-size: 14px;
+            padding: 10px 20px;
+        }
+        .legacy-btn:hover {
+            background-color: #7f8c8d;
+        }
+        .export-btn {
+            background-color: #e67e22;
+            font-size: 16px;
+            padding: 12px 25px;
+        }
+        .export-btn:hover {
+            background-color: #d35400;
+        }
+        
+        /* File Upload Styles */
+        .upload-section {
+            margin-bottom: 20px;
+        }
+        .upload-zone {
+            border: 2px dashed #3498db;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            background-color: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upload-zone:hover {
+            border-color: #2980b9;
+            background-color: #e3f2fd;
+        }
+        .upload-zone.dragover {
+            border-color: #27ae60;
+            background-color: #e8f5e8;
+        }
+        .upload-content {
+            color: #555;
+        }
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .upload-hint {
+            font-size: 12px;
+            color: #777;
+            margin-top: 5px;
+        }
+        .upload-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .upload-btn:hover {
+            background-color: #2980b9;
+        }
+        .file-info {
+            background-color: #e8f5e8;
+            border: 1px solid #27ae60;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        .file-details {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .file-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .file-size {
+            font-size: 12px;
+            color: #666;
+        }
+        .remove-file {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .process-file-btn {
+            background: linear-gradient(45deg, #27ae60, #229954);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+        }
+        .process-file-btn:hover {
+            background: linear-gradient(45deg, #229954, #1e8449);
+        }
+        .section-divider {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        .section-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: #ddd;
+        }
+        .section-divider span {
+            background-color: #f5f5f5;
+            padding: 0 15px;
+            color: #666;
+            font-weight: bold;
+        }
+        .manual-input-section {
+            margin-top: 10px;
+        }
         .task-header {
             display: flex;
             justify-content: space-between;
@@ -241,7 +395,40 @@
         <!-- AI Transcript Section -->
         <div style="background-color: #e8f4f8; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
             <h3 style="color: #2c3e50; margin-top: 0;">🤖 AI-Powered Transcript Processing</h3>
-            <p style="color: #555;">Paste your meeting transcript below and let AI extract actionable tasks:</p>
+            <p style="color: #555;">Upload a document or paste your meeting transcript below to extract actionable tasks:</p>
+            
+            <!-- File Upload Section -->
+            <div class="upload-section">
+                <h4 style="color: #2c3e50; margin-bottom: 10px;">📁 Upload Document</h4>
+                <div class="upload-zone" id="upload-zone">
+                    <div class="upload-content">
+                        <div class="upload-icon">📄</div>
+                        <p><strong>Drag & drop files here</strong> or click to browse</p>
+                        <p class="upload-hint">Supports: PDF, DOCX, TXT files (max 10MB)</p>
+                        <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt" style="display: none;">
+                        <button type="button" onclick="document.getElementById('file-input').click()" class="upload-btn">Choose File</button>
+                    </div>
+                </div>
+                <div id="file-info" class="file-info" style="display: none;">
+                    <div class="file-details">
+                        <span class="file-name"></span>
+                        <span class="file-size"></span>
+                        <button onclick="clearFile()" class="remove-file">✖</button>
+                    </div>
+                    <div class="file-actions">
+                        <button onclick="processUploadedFile()" class="process-file-btn">🚀 Process Document</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section-divider">
+                <span>OR</span>
+            </div>
+            
+            <!-- Manual Input Section -->
+            <div class="manual-input-section">
+                <h4 style="color: #2c3e50; margin-bottom: 10px;">✏️ Manual Input</h4>
+                <p style="color: #666; margin-bottom: 10px;">Paste your meeting transcript text:</p>
             
             <textarea id="transcript-input" placeholder="Paste your meeting transcript here...
 
@@ -334,7 +521,35 @@ Acceptance Criteria: All features must have unit tests
             </div>
             
             <button onclick="addTask()">+ Add Manual Task</button>
-            <button onclick="generateCSV()" class="generate-btn">Generate JIRA CSV</button>
+            
+            <!-- Enhanced Export Section -->
+            <div class="export-section">
+                <h3>📊 Export Options</h3>
+                <div class="export-controls">
+                    <div class="form-group">
+                        <label for="export-format">Export Format:</label>
+                        <select id="export-format">
+                            <option value="csv">CSV (Comma-separated values)</option>
+                            <option value="json">JSON (JavaScript Object Notation)</option>
+                            <option value="excel">Excel (XLSX format)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="export-template">Export Template:</label>
+                        <select id="export-template">
+                            <option value="standard">Standard - All task fields</option>
+                            <option value="summary">Summary - Essential fields only</option>
+                            <option value="detailed">Detailed - Tasks + Q&A items</option>
+                        </select>
+                    </div>
+                    
+                    <div class="export-buttons">
+                        <button onclick="generateCSV()" class="generate-btn legacy-btn">🔄 Legacy CSV</button>
+                        <button onclick="exportData()" class="generate-btn export-btn">📥 Enhanced Export</button>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- Q&A Tab Content -->
@@ -424,6 +639,152 @@ Acceptance Criteria: All features must have unit tests
             document.getElementById(`task-${taskId}`).remove();
         }
 
+        // File Upload Functions
+        let selectedFile = null;
+
+        function initializeFileUpload() {
+            const uploadZone = document.getElementById('upload-zone');
+            const fileInput = document.getElementById('file-input');
+
+            // Click to browse
+            uploadZone.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            // File input change
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+
+            // Drag and drop
+            uploadZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadZone.classList.add('dragover');
+            });
+
+            uploadZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+            });
+
+            uploadZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) {
+                    handleFileSelect(e.dataTransfer.files[0]);
+                }
+            });
+        }
+
+        function handleFileSelect(file) {
+            selectedFile = file;
+            
+            // Show file info
+            const fileInfo = document.getElementById('file-info');
+            const fileName = fileInfo.querySelector('.file-name');
+            const fileSize = fileInfo.querySelector('.file-size');
+            
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            
+            // Hide upload zone, show file info
+            document.getElementById('upload-zone').style.display = 'none';
+            fileInfo.style.display = 'block';
+
+            // Validate file
+            validateUploadedFile(file);
+        }
+
+        function clearFile() {
+            selectedFile = null;
+            document.getElementById('file-input').value = '';
+            document.getElementById('upload-zone').style.display = 'block';
+            document.getElementById('file-info').style.display = 'none';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function validateUploadedFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/api/upload/validate', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.validation.is_valid) {
+                    showMessage(`File "${file.name}" is valid and ready for processing.`, 'success');
+                } else {
+                    const errors = data.validation?.errors || ['File validation failed'];
+                    showMessage(`File validation failed: ${errors.join(', ')}`, 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('File validation failed', 'error');
+            });
+        }
+
+        function processUploadedFile() {
+            if (!selectedFile) {
+                showMessage('No file selected', 'error');
+                return;
+            }
+
+            const contextText = document.getElementById('context-input').value.trim();
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('context', contextText);
+
+            showMessage('Processing document...', 'info');
+            showProgress();
+
+            fetch('/api/upload/process', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideProgress();
+                
+                if (data.success) {
+                    showMessage(`Document processed successfully! Extracted ${data.analysis.tasks_count} tasks and ${data.analysis.qa_count} Q&A items.`, 'success');
+                    
+                    // Display extracted text in transcript area
+                    document.getElementById('transcript-input').value = data.transcript_text;
+                    
+                    // Process the results like normal transcript processing
+                    displayTasks(data.analysis.tasks);
+                    if (data.analysis.qa_items && data.analysis.qa_items.length > 0) {
+                        displayQAItems(data.analysis.qa_items);
+                    }
+                    
+                    // Clear the uploaded file
+                    clearFile();
+                } else {
+                    showMessage(`Document processing failed: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                hideProgress();
+                showMessage('Document processing failed', 'error');
+            });
+        }
+
+        // Initialize file upload when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFileUpload();
+        });
+
         function generateCSV() {
             const tasks = [];
             const taskForms = document.querySelectorAll('.task-form');
@@ -482,6 +843,105 @@ Acceptance Criteria: All features must have unit tests
             })
             .catch(error => {
                 showMessage(`Error: ${error.error || 'Failed to generate CSV'}`, 'error');
+            });
+        }
+
+        function exportData() {
+            const format = document.getElementById('export-format').value;
+            const template = document.getElementById('export-template').value;
+            
+            // Collect tasks data
+            const tasks = [];
+            const taskForms = document.querySelectorAll('.task-form');
+            
+            for (let form of taskForms) {
+                const taskId = form.id.split('-')[1];
+                const summary = document.getElementById(`summary-${taskId}`).value;
+                
+                if (!summary.trim()) {
+                    continue; // Skip empty tasks
+                }
+                
+                const task = {
+                    summary: summary,
+                    description: document.getElementById(`description-${taskId}`).value,
+                    issue_type: document.getElementById(`issue-type-${taskId}`).value,
+                    reporter: document.getElementById(`reporter-${taskId}`).value,
+                    due_date: document.getElementById(`due-date-${taskId}`).value,
+                };
+                
+                tasks.push(task);
+            }
+            
+            // Collect Q&A data if detailed template is selected
+            let qaItems = [];
+            if (template === 'detailed') {
+                const qaForms = document.querySelectorAll('.qa-item');
+                for (let qaForm of qaForms) {
+                    const qaId = qaForm.id.split('-')[2]; // qa-item-{id}
+                    const question = document.getElementById(`qa-question-${qaId}`)?.value || '';
+                    const answer = document.getElementById(`qa-answer-${qaId}`)?.value || '';
+                    
+                    if (question.trim()) {
+                        qaItems.push({
+                            question: question,
+                            answer: answer,
+                            asked_by: 'meeting@example.com',
+                            answered_by: answer ? 'meeting@example.com' : '',
+                            status: answer ? 'answered' : 'unanswered',
+                            context: ''
+                        });
+                    }
+                }
+            }
+            
+            if (tasks.length === 0 && qaItems.length === 0) {
+                showMessage('Please add at least one task or Q&A item before exporting.', 'error');
+                return;
+            }
+            
+            // Show loading message
+            showMessage(`Generating ${format.toUpperCase()} export...`, 'info');
+            
+            // Send request to enhanced export endpoint
+            fetch('/api/export', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    tasks: tasks,
+                    qa_items: qaItems,
+                    format: format,
+                    template: template
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => Promise.reject(err));
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                
+                // Generate filename based on format and template
+                const timestamp = new Date().toISOString().slice(0,19).replace(/:/g, '-');
+                const extension = format === 'excel' ? 'xlsx' : format;
+                a.download = `jira_${template}_${timestamp}.${extension}`;
+                
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                showMessage(`${format.toUpperCase()} file exported successfully!`, 'success');
+            })
+            .catch(error => {
+                showMessage(`Export Error: ${error.error || 'Failed to export data'}`, 'error');
             });
         }
 

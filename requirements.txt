@@ -1,5 +1,25 @@
+# Core Flask Application
 Flask==3.0.0
 Werkzeug==3.0.1
 requests==2.31.0
+
+# Testing Framework
 pytest==7.4.2
 pytest-cov==4.1.0
+
+# Export Formats
+openpyxl==3.1.2
+
+# Performance & Caching
+redis==5.0.1
+diskcache==5.6.3
+
+# Document Parsing
+PyPDF2==3.0.1
+python-docx==1.1.0
+python-magic==0.4.27
+
+# Additional Dependencies (auto-installed)
+# lxml>=3.1.0 (for python-docx)
+# et-xmlfile (for openpyxl)
+# typing-extensions (for python-docx)
