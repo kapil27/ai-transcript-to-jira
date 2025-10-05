@@ -19,6 +19,15 @@ PyPDF2==3.0.1
 python-docx==1.1.0
 python-magic==0.4.27
 
+# MCP Integration
+# mcp==1.0.0  # Placeholder for now, use mock implementation
+atlassian-python-api==3.41.0
+fuzzywuzzy==0.18.0
+# python-levenshtein==0.21.1  # Skip for now due to build issues
+
+# Environment Management
+python-dotenv==1.0.0
+
 # Additional Dependencies (auto-installed)
 # lxml>=3.1.0 (for python-docx)
 # et-xmlfile (for openpyxl)

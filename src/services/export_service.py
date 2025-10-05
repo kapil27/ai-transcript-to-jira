@@ -20,7 +20,7 @@ class ExportService(LoggerMixin):
     
     def __init__(self):
         """Initialize export service."""
-        self.task_headers = ['Summary', 'Description', 'Issue Type', 'Reporter', 'Due Date']
+        self.task_headers = ['Summary', 'Description', 'Issue Type']
         self.qa_headers = ['Question', 'Answer', 'Asked By', 'Answered By', 'Status', 'Context']
         
         # Export format configurations
@@ -100,22 +100,20 @@ class ExportService(LoggerMixin):
     def _validate_tasks(self, tasks: List[Dict[str, Any]]) -> List[JiraTask]:
         """Validate and convert task dictionaries to JiraTask objects."""
         validated_tasks = []
-        
+
         for i, task_data in enumerate(tasks):
             try:
                 jira_task = JiraTask(
                     summary=task_data.get('summary', ''),
                     description=task_data.get('description', ''),
-                    issue_type=task_data.get('issue_type', 'Task'),
-                    reporter=task_data.get('reporter', 'meeting@example.com'),
-                    due_date=task_data.get('due_date', '')
+                    issue_type=task_data.get('issue_type', 'Task')
                 )
                 validated_tasks.append(jira_task)
-                
+
             except ValueError as e:
                 self.logger.warning(f"Skipping invalid task {i+1}: {e}")
                 continue
-        
+
         return validated_tasks
     
     def _validate_qa_items(self, qa_items: List[Dict[str, Any]]) -> List[QAItem]:
@@ -147,10 +145,10 @@ class ExportService(LoggerMixin):
         if template == 'summary':
             # Summary template: tasks only, minimal columns
             writer = csv.writer(output, quoting=csv.QUOTE_ALL)
-            writer.writerow(['Summary', 'Issue Type', 'Due Date'])
-            
+            writer.writerow(['Summary', 'Issue Type'])
+
             for task in tasks:
-                writer.writerow([task.summary, task.issue_type, task.due_date or ''])
+                writer.writerow([task.summary, task.issue_type])
         
         elif template == 'detailed':
             # Detailed template: separate sections for tasks and Q&A
@@ -162,8 +160,7 @@ class ExportService(LoggerMixin):
                 writer.writerow(self.task_headers)
                 for task in tasks:
                     writer.writerow([
-                        task.summary, task.description, task.issue_type,
-                        task.reporter, task.due_date or ''
+                        task.summary, task.description, task.issue_type
                     ])
                 writer.writerow([])  # Empty row separator
             
@@ -184,8 +181,7 @@ class ExportService(LoggerMixin):
             
             for task in tasks:
                 writer.writerow([
-                    task.summary, task.description, task.issue_type,
-                    task.reporter, task.due_date or ''
+                    task.summary, task.description, task.issue_type
                 ])
         
         content = output.getvalue()
@@ -253,22 +249,21 @@ class ExportService(LoggerMixin):
             ws.title = "Task Summary"
             
             # Headers
-            headers = ['Summary', 'Issue Type', 'Due Date']
+            headers = ['Summary', 'Issue Type']
             for col, header in enumerate(headers, 1):
                 cell = ws.cell(row=1, column=col, value=header)
                 cell.font = header_font
                 cell.fill = header_fill
                 cell.alignment = header_alignment
                 cell.border = border
-            
+
             # Data
             for row, task in enumerate(tasks, 2):
                 ws.cell(row=row, column=1, value=task.summary).border = border
                 ws.cell(row=row, column=2, value=task.issue_type).border = border
-                ws.cell(row=row, column=3, value=task.due_date or '').border = border
-            
+
             # Auto-adjust column widths
-            for col in range(1, 4):
+            for col in range(1, 3):
                 ws.column_dimensions[get_column_letter(col)].width = 20
         
         elif template == 'detailed':
@@ -292,11 +287,9 @@ class ExportService(LoggerMixin):
                     ws_tasks.cell(row=row, column=1, value=task.summary).border = border
                     ws_tasks.cell(row=row, column=2, value=task.description).border = border
                     ws_tasks.cell(row=row, column=3, value=task.issue_type).border = border
-                    ws_tasks.cell(row=row, column=4, value=task.reporter).border = border
-                    ws_tasks.cell(row=row, column=5, value=task.due_date or '').border = border
-                
+
                 # Auto-adjust column widths
-                for col in range(1, 6):
+                for col in range(1, 4):
                     ws_tasks.column_dimensions[get_column_letter(col)].width = 25
             
             # Q&A sheet
@@ -342,11 +335,9 @@ class ExportService(LoggerMixin):
                 ws.cell(row=row, column=1, value=task.summary).border = border
                 ws.cell(row=row, column=2, value=task.description).border = border
                 ws.cell(row=row, column=3, value=task.issue_type).border = border
-                ws.cell(row=row, column=4, value=task.reporter).border = border
-                ws.cell(row=row, column=5, value=task.due_date or '').border = border
-            
+
             # Auto-adjust column widths
-            for col in range(1, 6):
+            for col in range(1, 4):
                 ws.column_dimensions[get_column_letter(col)].width = 25
         
         # Save to bytes

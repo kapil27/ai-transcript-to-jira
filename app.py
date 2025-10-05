@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.config import get_config
 from src.api.routes import create_api_blueprint
+from src.api.mcp_endpoints import create_mcp_blueprint
 from src.utils import setup_logger
 
 # Initialize Flask app
@@ -19,9 +20,13 @@ app.config['SECRET_KEY'] = config.secret_key or 'dev-secret-key'
 # Setup logging
 logger = setup_logger('JIRA_CSV_App', 'INFO' if not config.debug else 'DEBUG')
 
-# Register API blueprint
+# Register API blueprints
 api_blueprint = create_api_blueprint()
 app.register_blueprint(api_blueprint)
+
+# Register MCP-enhanced endpoints
+mcp_blueprint = create_mcp_blueprint()
+app.register_blueprint(mcp_blueprint)
 
 @app.route('/')
 def index():

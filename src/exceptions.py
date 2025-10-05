@@ -34,3 +34,18 @@ class CSVGenerationError(JiraCSVGeneratorError):
 class ExportError(JiraCSVGeneratorError):
     """Errors related to data export operations."""
     pass
+
+
+class JiraIntegrationError(JiraCSVGeneratorError):
+    """Errors related to JIRA integration and MCP operations."""
+    pass
+
+
+class MCPError(JiraCSVGeneratorError):
+    """Errors related to Model Context Protocol operations."""
+    pass
+
+
+class DuplicateDetectionError(JiraCSVGeneratorError):
+    """Errors related to duplicate task detection."""
+    pass

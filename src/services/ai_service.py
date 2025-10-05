@@ -163,23 +163,53 @@ class OllamaService(AIService):
         except requests.exceptions.RequestException as e:
             raise AIServiceError(f"Ollama API call failed: {e}")
     
-    def _create_task_extraction_prompt(self, transcript: str, context: str = "") -> str:
-        """Create prompt for task extraction."""
-        base_prompt = f"""Extract actionable tasks from this meeting transcript. Return results as a JSON array.
+    def _create_task_extraction_prompt(self, text: str, context: str = "") -> str:
+        """Create prompt for task extraction from various document types."""
+        document_type = self._detect_document_type(text)
 
-TRANSCRIPT:
-{transcript}
+        if document_type == "refinement":
+            base_prompt = f"""Extract actionable tasks from this refinement document. Return results as a JSON array.
+
+REFINEMENT DOCUMENT:
+{text}
+
+Find ALL implementable tasks, development items, and technical requirements. Each task should be a separate JSON object.
+
+Return ONLY a JSON array in this exact format:
+[
+  {{
+    "summary": "Task title (clear and actionable)",
+    "description": "Detailed task description with acceptance criteria",
+    "issue_type": "Story"
+  }}
+]
+
+Look for:
+- User stories and feature requirements
+- Technical specifications to implement
+- Bug fixes and improvements mentioned
+- API endpoints to create/modify
+- UI/UX changes needed
+- Database schema changes
+- Testing requirements
+- Documentation updates
+
+Focus on breaking down large features into specific, implementable tasks.
+Return multiple objects in the array - one for each task found. If no tasks, return []."""
+        else:
+            base_prompt = f"""Extract actionable tasks from this meeting transcript or document. Return results as a JSON array.
+
+DOCUMENT:
+{text}
 
 Find ALL tasks, action items, and assignments mentioned. Each task should be a separate JSON object.
 
 Return ONLY a JSON array in this exact format:
 [
   {{
-    "summary": "Task title",
-    "description": "Task description with context",
-    "issue_type": "Task",
-    "reporter": "{self.config.default_reporter}",
-    "due_date": ""
+    "summary": "Task title (clear and actionable)",
+    "description": "Task description with context and details",
+    "issue_type": "Task"
   }}
 ]
 
@@ -188,6 +218,8 @@ Look for:
 - Work items mentioned ("We need to update Y")
 - Bug reports ("There's an issue with Z")
 - Follow-up tasks from decisions
+- Action items and deliverables
+- Research tasks and investigations
 
 Return multiple objects in the array - one for each task found. If no tasks, return []."""
 
@@ -202,9 +234,84 @@ Use this context to:
 - Improve task descriptions with relevant background
 - Categorize tasks more accurately based on project context
 - Add appropriate details based on team roles and project requirements"""
-        
+
         return base_prompt
-    
+
+    def _detect_document_type(self, text: str) -> str:
+        """
+        Detect if document is a refinement doc or meeting transcript.
+
+        Returns:
+            "refinement" for product requirement/specification docs
+            "meeting" for meeting transcripts, notes, or general documents
+        """
+        if not text or len(text.strip()) < 10:
+            return "meeting"  # Default for short/empty text
+
+        text_lower = text.lower()
+
+        # Strong refinement document indicators
+        strong_refinement_indicators = [
+            'user story', 'acceptance criteria', 'epic', 'feature requirement',
+            'technical specification', 'api specification', 'user acceptance criteria',
+            'definition of done', 'business requirement', 'functional requirement',
+            'non-functional requirement', 'product requirement', 'feature spec'
+        ]
+
+        # Weaker refinement indicators
+        weak_refinement_indicators = [
+            'feature', 'requirement', 'specification', 'api endpoint',
+            'database schema', 'mockup', 'wireframe', 'prototype',
+            'design system', 'user journey', 'workflow', 'use case'
+        ]
+
+        # Meeting transcript indicators
+        meeting_indicators = [
+            'said:', 'discussed', 'agreed', 'decided', 'meeting started',
+            'meeting ended', 'action item', 'follow up', 'next steps',
+            'assigned to', 'will do', 'take care of', 'transcript',
+            'attendees', 'agenda', 'minutes'
+        ]
+
+        # Name patterns that suggest dialogue/transcript
+        dialogue_patterns = [
+            ':', 'john:', 'sarah:', 'alex:', 'mike:', 'emma:', 'team:',
+            'manager:', 'lead:', 'dev:', 'qa:', 'pm:'
+        ]
+
+        # Calculate scores
+        strong_refinement_score = sum(2 for indicator in strong_refinement_indicators if indicator in text_lower)
+        weak_refinement_score = sum(1 for indicator in weak_refinement_indicators if indicator in text_lower)
+        meeting_score = sum(1 for indicator in meeting_indicators if indicator in text_lower)
+
+        # Check for dialogue patterns (strong meeting indicator)
+        dialogue_count = sum(1 for pattern in dialogue_patterns if pattern in text_lower)
+        if dialogue_count >= 3:  # Multiple speakers suggest meeting transcript
+            meeting_score += 5
+
+        # Check document structure patterns
+        if 'as a user' in text_lower or 'given when then' in text_lower:
+            strong_refinement_score += 3
+
+        # Count line breaks and structure (refinement docs tend to be more structured)
+        lines = text.split('\n')
+        if len(lines) > 10:
+            # Look for structured document patterns
+            structured_lines = sum(1 for line in lines if line.strip().startswith(('#', '-', '*', '1.', '2.', '3.')))
+            if structured_lines > len(lines) * 0.3:  # 30% of lines are structured
+                weak_refinement_score += 2
+
+        total_refinement_score = strong_refinement_score + weak_refinement_score
+
+        # Decision logic: require clear evidence for refinement classification
+        if strong_refinement_score >= 2 or total_refinement_score >= 4:
+            return "refinement"
+        elif meeting_score >= 2 or dialogue_count >= 2:
+            return "meeting"
+        else:
+            # Default to meeting for ambiguous cases
+            return "meeting"
+
     @cached_ai_response("extract_tasks_iteratively")
     def _extract_tasks_iteratively(self, transcript: str, context: str = "") -> List[Dict[str, Any]]:
         """Extract tasks using iterative approach."""
@@ -233,19 +340,19 @@ Use this context to better understand the project and identify relevant tasks.""
             list_response = self._call_ollama(list_prompt, use_json_format=False)
             if not list_response:
                 return []
-            
+
             # Parse numbered list
             lines = list_response.strip().split('\n')
             task_descriptions = []
-            
+
             for line in lines:
                 line = line.strip()
-                if line and (line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.')) or 
+                if line and (line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.')) or
                            line.startswith('- ') or line.startswith('* ')):
                     task_desc = line.split('.', 1)[-1].strip() if '.' in line else line[2:].strip()
                     if task_desc:
                         task_descriptions.append(task_desc)
-            
+
             # Convert descriptions to task objects
             all_tasks = []
             for desc in task_descriptions[:self.config.max_tasks_per_transcript]:
@@ -257,9 +364,7 @@ Return ONLY a JSON object in this format:
 {{
     "summary": "Brief title for the task",
     "description": "Detailed description",
-    "issue_type": "Task",
-    "reporter": "{self.config.default_reporter}",
-    "due_date": ""
+    "issue_type": "Task"
 }}"""
 
                 if context.strip():
@@ -280,9 +385,9 @@ Use this context to enhance the task description and ensure proper categorizatio
                             all_tasks.append(task_data)
                 except:
                     continue
-            
+
             return self._validate_tasks(all_tasks)
-            
+
         except Exception:
             return []
     
@@ -314,19 +419,19 @@ Use this context to better understand domain-specific questions and their import
             questions_response = self._call_ollama(questions_prompt, use_json_format=False)
             if not questions_response or "No questions found" in questions_response:
                 return []
-            
+
             # Parse numbered list of questions
             lines = questions_response.strip().split('\n')
             questions = []
-            
+
             for line in lines:
                 line = line.strip()
-                if line and (line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.')) or 
+                if line and (line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.')) or
                            line.startswith('- ') or line.startswith('* ')):
                     question_text = line.split('.', 1)[-1].strip() if '.' in line else line[2:].strip()
                     if question_text and question_text.endswith('?'):
                         questions.append(question_text)
-            
+
             # Process each question for context
             all_qa = []
             for question in questions[:self.config.max_questions_per_transcript]:
@@ -377,9 +482,9 @@ Use this additional context to provide richer background information and better 
                             all_qa.append(validated_qa)
                 except:
                     continue
-            
+
             return all_qa
-            
+
         except Exception:
             return []
     

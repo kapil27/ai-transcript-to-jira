@@ -207,9 +207,17 @@
             cursor: pointer;
             font-weight: bold;
             width: 100%;
+            transition: all 0.3s ease;
         }
-        .process-file-btn:hover {
+        .process-file-btn:hover:not(:disabled) {
             background: linear-gradient(45deg, #229954, #1e8449);
+            transform: translateY(-1px);
+        }
+        .process-file-btn:disabled {
+            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+            cursor: not-allowed;
+            opacity: 0.7;
+            transform: none;
         }
         .section-divider {
             text-align: center;
@@ -392,6 +400,53 @@
             Generate JIRA tasks from meeting transcripts or enter them manually
         </p>
         
+        <!-- JIRA Integration Section -->
+        <div style="background-color: #e3f2fd; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #2c3e50; margin-top: 0;">🔗 JIRA Integration Setup</h3>
+            <p style="color: #555;">Connect your JIRA instance for enhanced task creation and context-aware features:</p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label for="jira-url" style="font-size: 14px;">JIRA URL:</label>
+                    <input type="url" id="jira-url" placeholder="https://yourcompany.atlassian.net" style="font-size: 14px;">
+                </div>
+                <div>
+                    <label for="jira-username" style="font-size: 14px;">Username/Email:</label>
+                    <input type="email" id="jira-username" placeholder="your.email@company.com" style="font-size: 14px;">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <div>
+                    <label for="jira-token" style="font-size: 14px;">API Token:</label>
+                    <input type="password" id="jira-token" placeholder="Your JIRA API token" style="font-size: 14px;">
+                </div>
+                <div>
+                    <label for="jira-project" style="font-size: 14px;">Project Key:</label>
+                    <input type="text" id="jira-project" placeholder="PROJ" style="font-size: 14px; text-transform: uppercase;">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="testJiraConnection()" style="background-color: #0052cc; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">🔍 Test Connection</button>
+                <button onclick="loadJiraProjects()" style="background-color: #17a2b8; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">📂 Load Projects</button>
+                <button onclick="clearJiraConfig()" style="background-color: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">🗑️ Clear</button>
+                <span id="jira-status" style="color: #666; font-weight: bold;"></span>
+            </div>
+
+            <div id="jira-projects-section" style="display: none; margin-top: 15px; padding: 15px; background-color: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
+                <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Available Projects:</h4>
+                <select id="jira-project-select" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                    <option value="">Select a project...</option>
+                </select>
+                <button onclick="selectJiraProject()" style="background-color: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">✅ Use Selected Project</button>
+            </div>
+
+            <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                💡 <strong>Need help?</strong> Check the <a href="#" onclick="showJiraSetupGuide()" style="color: #0052cc;">JIRA Integration Setup Guide</a>
+            </div>
+        </div>
+
         <!-- AI Transcript Section -->
         <div style="background-color: #e8f4f8; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
             <h3 style="color: #2c3e50; margin-top: 0;">🤖 AI-Powered Transcript Processing</h3>
@@ -417,6 +472,7 @@
                     </div>
                     <div class="file-actions">
                         <button onclick="processUploadedFile()" class="process-file-btn">🚀 Process Document</button>
+                        <button onclick="selectNewFile()" class="upload-btn" style="display: none; margin-left: 10px;">📁 Select New File</button>
                     </div>
                 </div>
             </div>
@@ -607,27 +663,15 @@ Acceptance Criteria: All features must have unit tests
                         <textarea id="description-${taskCount}" placeholder="Detailed description of the task"></textarea>
                     </div>
                     
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="issue-type-${taskCount}">Issue Type</label>
-                            <select id="issue-type-${taskCount}">
-                                <option value="">Select type</option>
-                                <option value="Story">Story</option>
-                                <option value="Task">Task</option>
-                                <option value="Bug">Bug</option>
-                                <option value="Epic">Epic</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="reporter-${taskCount}">Reporter Email</label>
-                            <input type="email" id="reporter-${taskCount}" placeholder="reporter@example.com">
-                        </div>
-                    </div>
-                    
                     <div class="form-group">
-                        <label for="due-date-${taskCount}">Due Date</label>
-                        <input type="date" id="due-date-${taskCount}">
+                        <label for="issue-type-${taskCount}">Issue Type</label>
+                        <select id="issue-type-${taskCount}">
+                            <option value="">Select type</option>
+                            <option value="Story">Story</option>
+                            <option value="Task">Task</option>
+                            <option value="Bug">Bug</option>
+                            <option value="Epic">Epic</option>
+                        </select>
                     </div>
                 </div>
             `;
@@ -641,6 +685,7 @@ Acceptance Criteria: All features must have unit tests
 
         // File Upload Functions
         let selectedFile = null;
+        let isProcessing = false;
 
         function initializeFileUpload() {
             const uploadZone = document.getElementById('upload-zone');
@@ -699,9 +744,55 @@ Acceptance Criteria: All features must have unit tests
 
         function clearFile() {
             selectedFile = null;
+            isProcessing = false;
             document.getElementById('file-input').value = '';
             document.getElementById('upload-zone').style.display = 'block';
             document.getElementById('file-info').style.display = 'none';
+
+            // Reset the process button
+            const processBtn = document.querySelector('.process-file-btn');
+            if (processBtn) {
+                processBtn.disabled = false;
+                processBtn.textContent = '🚀 Process Document';
+            }
+
+            // Hide the select new file button
+            const selectNewBtn = document.querySelector('.file-actions .upload-btn');
+            if (selectNewBtn) {
+                selectNewBtn.style.display = 'none';
+            }
+        }
+
+        function selectNewFile() {
+            // Clear current file and trigger file picker
+            document.getElementById('file-input').value = '';
+            selectedFile = null;
+            isProcessing = false;
+
+            // Reset the process button
+            const processBtn = document.querySelector('.process-file-btn');
+            if (processBtn) {
+                processBtn.disabled = false;
+                processBtn.textContent = '🚀 Process Document';
+            }
+
+            // Hide the select new file button
+            const selectNewBtn = document.querySelector('.file-actions .upload-btn');
+            if (selectNewBtn) {
+                selectNewBtn.style.display = 'none';
+            }
+
+            // Trigger file picker
+            document.getElementById('file-input').click();
+        }
+
+        function resetProcessButton() {
+            isProcessing = false;
+            const processBtn = document.querySelector('.process-file-btn');
+            if (processBtn) {
+                processBtn.disabled = false;
+                processBtn.textContent = '🚀 Process Document';
+            }
         }
 
         function formatFileSize(bytes) {
@@ -735,9 +826,25 @@ Acceptance Criteria: All features must have unit tests
         }
 
         function processUploadedFile() {
+            console.log('processUploadedFile called, selectedFile:', selectedFile, 'isProcessing:', isProcessing);
+
             if (!selectedFile) {
                 showMessage('No file selected', 'error');
                 return;
+            }
+
+            // Prevent duplicate submissions using global flag
+            if (isProcessing) {
+                console.log('Already processing, ignoring click');
+                return;
+            }
+
+            // Set processing flag and disable button
+            isProcessing = true;
+            const processBtn = document.querySelector('.process-file-btn');
+            if (processBtn) {
+                processBtn.disabled = true;
+                processBtn.textContent = '⏳ Processing...';
             }
 
             const contextText = document.getElementById('context-input').value.trim();
@@ -755,28 +862,55 @@ Acceptance Criteria: All features must have unit tests
             .then(response => response.json())
             .then(data => {
                 hideProgress();
-                
+
+                // Reset processing state and re-enable the button
+                isProcessing = false;
+                const processBtn = document.querySelector('.process-file-btn');
+                if (processBtn) {
+                    processBtn.disabled = false;
+                    processBtn.textContent = '🚀 Process Document';
+                }
+
                 if (data.success) {
                     showMessage(`Document processed successfully! Extracted ${data.analysis.tasks_count} tasks and ${data.analysis.qa_count} Q&A items.`, 'success');
-                    
+
                     // Display extracted text in transcript area
                     document.getElementById('transcript-input').value = data.transcript_text;
-                    
+
                     // Process the results like normal transcript processing
                     displayTasks(data.analysis.tasks);
                     if (data.analysis.qa_items && data.analysis.qa_items.length > 0) {
                         displayQAItems(data.analysis.qa_items);
                     }
-                    
-                    // Clear the uploaded file
-                    clearFile();
+
+                    // Update button text to show completion and show select new file button
+                    const processBtn = document.querySelector('.process-file-btn');
+                    if (processBtn) {
+                        processBtn.textContent = '✅ Document Processed - Click to Process Again';
+                    }
+
+                    // Show the select new file button
+                    const selectNewBtn = document.querySelector('.file-actions .upload-btn');
+                    if (selectNewBtn) {
+                        selectNewBtn.style.display = 'inline-block';
+                    }
                 } else {
                     showMessage(`Document processing failed: ${data.error}`, 'error');
                 }
             })
             .catch(error => {
                 hideProgress();
+
+                // Reset processing state and re-enable the button
+                isProcessing = false;
+                const processBtn = document.querySelector('.process-file-btn');
+                if (processBtn) {
+                    processBtn.disabled = false;
+                    processBtn.textContent = '🚀 Process Document';
+                }
+
                 showMessage('Document processing failed', 'error');
+                console.error('Upload error:', error);
             });
         }
 
@@ -806,9 +940,7 @@ Acceptance Criteria: All features must have unit tests
                 const task = {
                     summary: summary,
                     description: document.getElementById(`description-${taskId}`).value,
-                    issue_type: document.getElementById(`issue-type-${taskId}`).value,
-                    reporter: document.getElementById(`reporter-${taskId}`).value,
-                    due_date: document.getElementById(`due-date-${taskId}`).value,
+                    issue_type: document.getElementById(`issue-type-${taskId}`).value
                 };
                 
                 tasks.push(task);
@@ -865,9 +997,7 @@ Acceptance Criteria: All features must have unit tests
                 const task = {
                     summary: summary,
                     description: document.getElementById(`description-${taskId}`).value,
-                    issue_type: document.getElementById(`issue-type-${taskId}`).value,
-                    reporter: document.getElementById(`reporter-${taskId}`).value,
-                    due_date: document.getElementById(`due-date-${taskId}`).value,
+                    issue_type: document.getElementById(`issue-type-${taskId}`).value
                 };
                 
                 tasks.push(task);
@@ -1010,6 +1140,21 @@ Acceptance Criteria: All features must have unit tests
             });
         }
         
+        function displayTasks(tasks) {
+            if (!tasks || tasks.length === 0) {
+                return;
+            }
+
+            // Clear existing tasks first
+            document.getElementById('tasks-container').innerHTML = '';
+            taskCount = 0;
+
+            // Add each task using the existing addTaskFromAI function
+            tasks.forEach(task => {
+                addTaskFromAI(task);
+            });
+        }
+
         function addTaskFromAI(task) {
             taskCount++;
             const taskHtml = `
@@ -1018,42 +1163,30 @@ Acceptance Criteria: All features must have unit tests
                         <span class="task-number">Task ${taskCount} (from AI)</span>
                         <button onclick="removeTask(${taskCount})" class="remove-btn">Remove</button>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="summary-${taskCount}">Summary (Required) *</label>
                         <input type="text" id="summary-${taskCount}" value="${task.summary || ''}" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label for="description-${taskCount}">Description</label>
                         <textarea id="description-${taskCount}">${task.description || ''}</textarea>
                     </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="issue-type-${taskCount}">Issue Type</label>
-                            <select id="issue-type-${taskCount}">
-                                <option value="">Select type</option>
-                                <option value="Story" ${task.issue_type === 'Story' ? 'selected' : ''}>Story</option>
-                                <option value="Task" ${task.issue_type === 'Task' ? 'selected' : ''}>Task</option>
-                                <option value="Bug" ${task.issue_type === 'Bug' ? 'selected' : ''}>Bug</option>
-                                <option value="Epic" ${task.issue_type === 'Epic' ? 'selected' : ''}>Epic</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="reporter-${taskCount}">Reporter Email</label>
-                            <input type="email" id="reporter-${taskCount}" value="${task.reporter || ''}" placeholder="reporter@example.com">
-                        </div>
-                    </div>
-                    
+
                     <div class="form-group">
-                        <label for="due-date-${taskCount}">Due Date</label>
-                        <input type="date" id="due-date-${taskCount}" value="${task.due_date || ''}">
+                        <label for="issue-type-${taskCount}">Issue Type</label>
+                        <select id="issue-type-${taskCount}">
+                            <option value="">Select type</option>
+                            <option value="Story" ${task.issue_type === 'Story' ? 'selected' : ''}>Story</option>
+                            <option value="Task" ${task.issue_type === 'Task' ? 'selected' : ''}>Task</option>
+                            <option value="Bug" ${task.issue_type === 'Bug' ? 'selected' : ''}>Bug</option>
+                            <option value="Epic" ${task.issue_type === 'Epic' ? 'selected' : ''}>Epic</option>
+                        </select>
                     </div>
                 </div>
             `;
-            
+
             document.getElementById('tasks-container').insertAdjacentHTML('beforeend', taskHtml);
         }
 
@@ -1577,6 +1710,220 @@ Acceptance Criteria: All features must have unit tests
             } catch (error) {
                 console.log('No saved profiles to auto-load');
             }
+        });
+
+        // JIRA Integration Functions
+        function testJiraConnection() {
+            const jiraUrl = document.getElementById('jira-url').value.trim();
+            const username = document.getElementById('jira-username').value.trim();
+            const apiToken = document.getElementById('jira-token').value.trim();
+            const statusSpan = document.getElementById('jira-status');
+
+            if (!jiraUrl || !username || !apiToken) {
+                showMessage('Please fill in all JIRA connection fields', 'error');
+                return;
+            }
+
+            statusSpan.textContent = '🔄 Testing connection...';
+            statusSpan.style.color = '#007bff';
+
+            fetch('/api/mcp/jira/connect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    jira_url: jiraUrl,
+                    username: username,
+                    api_token: apiToken
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusSpan.textContent = '✅ Connected successfully!';
+                    statusSpan.style.color = '#28a745';
+                    showMessage('JIRA connection successful! You can now use enhanced features.', 'success');
+
+                    // Save credentials for this session (not in localStorage for security)
+                    window.jiraConfig = {
+                        url: jiraUrl,
+                        username: username,
+                        token: apiToken,
+                        connected: true
+                    };
+
+                    // Auto-load projects
+                    setTimeout(loadJiraProjects, 1000);
+                } else {
+                    statusSpan.textContent = '❌ Connection failed';
+                    statusSpan.style.color = '#dc3545';
+                    showMessage(`JIRA connection failed: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                statusSpan.textContent = '❌ Connection error';
+                statusSpan.style.color = '#dc3545';
+                showMessage('JIRA connection error: ' + error.message, 'error');
+            });
+        }
+
+        function loadJiraProjects() {
+            if (!window.jiraConfig || !window.jiraConfig.connected) {
+                showMessage('Please test JIRA connection first', 'error');
+                return;
+            }
+
+            const statusSpan = document.getElementById('jira-status');
+            statusSpan.textContent = '📂 Loading projects...';
+            statusSpan.style.color = '#007bff';
+
+            fetch('/api/mcp/jira/projects/enriched')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayJiraProjects(data.projects);
+                    statusSpan.textContent = `📂 Found ${data.count} projects`;
+                    statusSpan.style.color = '#28a745';
+                } else {
+                    statusSpan.textContent = '❌ Failed to load projects';
+                    statusSpan.style.color = '#dc3545';
+                    showMessage('Failed to load JIRA projects', 'error');
+                }
+            })
+            .catch(error => {
+                statusSpan.textContent = '❌ Projects load error';
+                statusSpan.style.color = '#dc3545';
+                showMessage('Error loading projects: ' + error.message, 'error');
+            });
+        }
+
+        function displayJiraProjects(projects) {
+            const projectSelect = document.getElementById('jira-project-select');
+            const projectsSection = document.getElementById('jira-projects-section');
+
+            // Clear existing options
+            projectSelect.innerHTML = '<option value="">Select a project...</option>';
+
+            // Add projects to dropdown
+            projects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project.key;
+                option.textContent = `${project.key} - ${project.name}`;
+                option.setAttribute('data-project', JSON.stringify(project));
+                projectSelect.appendChild(option);
+            });
+
+            // Show the projects section
+            projectsSection.style.display = 'block';
+        }
+
+        function selectJiraProject() {
+            const projectSelect = document.getElementById('jira-project-select');
+            const selectedOption = projectSelect.options[projectSelect.selectedIndex];
+
+            if (!selectedOption.value) {
+                showMessage('Please select a project', 'error');
+                return;
+            }
+
+            const projectKey = selectedOption.value;
+            const projectData = JSON.parse(selectedOption.getAttribute('data-project'));
+
+            // Update the manual project key input
+            document.getElementById('jira-project').value = projectKey;
+
+            // Store selected project data
+            window.jiraConfig.selectedProject = projectData;
+
+            showMessage(`Selected project: ${projectKey} - ${projectData.name}`, 'success');
+
+            // Update status
+            const statusSpan = document.getElementById('jira-status');
+            statusSpan.textContent = `✅ Using project: ${projectKey}`;
+            statusSpan.style.color = '#28a745';
+        }
+
+        function clearJiraConfig() {
+            if (confirm('Clear JIRA configuration? This will disconnect your JIRA session.')) {
+                // Clear form fields
+                document.getElementById('jira-url').value = '';
+                document.getElementById('jira-username').value = '';
+                document.getElementById('jira-token').value = '';
+                document.getElementById('jira-project').value = '';
+
+                // Clear session data
+                window.jiraConfig = null;
+
+                // Hide projects section
+                document.getElementById('jira-projects-section').style.display = 'none';
+
+                // Clear status
+                const statusSpan = document.getElementById('jira-status');
+                statusSpan.textContent = '';
+
+                showMessage('JIRA configuration cleared', 'success');
+            }
+        }
+
+        function showJiraSetupGuide() {
+            // Create a simple guide modal
+            const guideContent = `
+JIRA Integration Setup Guide
+
+1. Generate API Token:
+   • Go to https://id.atlassian.com/manage-profile/security/api-tokens
+   • Click "Create API token"
+   • Give it a label like "AI Transcript JIRA Integration"
+   • Copy the generated token
+
+2. Fill in connection details:
+   • JIRA URL: Your JIRA instance URL (e.g., https://yourcompany.atlassian.net)
+   • Username: Your JIRA username/email
+   • API Token: The token you just generated
+   • Project Key: The project where tasks will be created (e.g., "PROJ")
+
+3. Test connection:
+   • Click "Test Connection" to verify your credentials
+   • If successful, click "Load Projects" to see available projects
+   • Select your project from the dropdown
+
+4. Enhanced Features:
+   Once connected, you'll get:
+   • Context-aware task extraction based on your project
+   • Smart duplicate detection against existing JIRA issues
+   • Auto-suggestion of issue types and epics
+   • Direct task creation in your JIRA project
+
+Need more help? Check the JIRA_INTEGRATION_SETUP.md file in your project folder.
+            `;
+
+            alert(guideContent);
+        }
+
+        // Auto-load JIRA config from environment variables on page load
+        window.addEventListener('load', function() {
+            // Check if environment variables are available via a status endpoint
+            fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.jira_configured) {
+                    const statusSpan = document.getElementById('jira-status');
+                    statusSpan.textContent = '🔧 JIRA configured via environment';
+                    statusSpan.style.color = '#17a2b8';
+
+                    showMessage('JIRA is configured via environment variables. Enhanced features are available!', 'success');
+
+                    // Mark as connected
+                    window.jiraConfig = {
+                        connected: true,
+                        fromEnv: true
+                    };
+                }
+            })
+            .catch(error => {
+                console.log('No environment JIRA config detected');
+            });
         });
     </script>
 </body>

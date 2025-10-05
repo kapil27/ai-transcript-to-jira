@@ -128,16 +128,25 @@ class TranscriptAnalysisService(LoggerMixin):
     def get_service_status(self) -> Dict[str, Any]:
         """
         Get status of the transcript analysis service.
-        
+
         Returns:
             Dictionary with service status information
         """
         ai_available = self.ai_service.test_connection()
-        
+
+        # Check JIRA configuration
+        jira_configured = all([
+            self.config.jira.base_url,
+            self.config.jira.username,
+            self.config.jira.api_token
+        ])
+
         return {
             'ai_service_available': ai_available,
             'ai_service_type': self.ai_service.__class__.__name__,
             'max_tasks': self.config.max_tasks_per_transcript,
             'max_questions': self.config.max_questions_per_transcript,
-            'max_transcript_length': self.config.max_transcript_length
+            'max_transcript_length': self.config.max_transcript_length,
+            'jira_configured': jira_configured,
+            'mcp_features_available': jira_configured
         }
