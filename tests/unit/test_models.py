@@ -15,26 +15,20 @@ class TestJiraTask:
         task = JiraTask(
             summary="Test task",
             description="Test description",
-            issue_type="Task",
-            reporter="test@example.com",
-            due_date="2024-12-31"
+            issue_type="Task"
         )
-        
+
         assert task.summary == "Test task"
         assert task.description == "Test description"
         assert task.issue_type == "Task"
-        assert task.reporter == "test@example.com"
-        assert task.due_date == "2024-12-31"
     
     def test_task_with_defaults(self):
         """Test creating task with default values."""
         task = JiraTask(summary="Test task")
-        
+
         assert task.summary == "Test task"
         assert task.description == ""
         assert task.issue_type == "Task"
-        assert task.reporter == "meeting@example.com"
-        assert task.due_date is None
     
     def test_empty_summary_validation(self):
         """Test validation fails for empty summary."""
@@ -52,43 +46,34 @@ class TestJiraTask:
         with pytest.raises(ValueError, match="Issue type must be one of"):
             JiraTask(summary="Test", issue_type="InvalidType")
     
-    def test_invalid_email_validation(self):
-        """Test validation fails for invalid email."""
-        with pytest.raises(ValueError, match="Reporter must be a valid email address"):
-            JiraTask(summary="Test", reporter="invalid-email")
-    
-    def test_invalid_date_validation(self):
-        """Test validation fails for invalid date format."""
-        with pytest.raises(ValueError, match="Due date must be in YYYY-MM-DD format"):
-            JiraTask(summary="Test", due_date="invalid-date")
-    
     def test_to_dict_conversion(self):
         """Test converting task to dictionary."""
         task = JiraTask(
             summary="Test task",
             description="Test description",
-            issue_type="Bug",
-            reporter="test@example.com",
-            due_date="2024-12-31"
+            issue_type="Bug"
         )
-        
+
         result = task.to_dict()
         expected = {
             'summary': 'Test task',
             'description': 'Test description',
-            'issue_type': 'Bug',
-            'reporter': 'test@example.com',
-            'due_date': '2024-12-31'
+            'issue_type': 'Bug'
         }
-        
+
         assert result == expected
     
-    def test_to_dict_with_none_due_date(self):
-        """Test to_dict with None due_date."""
+    def test_to_dict_with_defaults(self):
+        """Test to_dict with default values."""
         task = JiraTask(summary="Test task")
         result = task.to_dict()
-        
-        assert result['due_date'] == ""
+
+        expected = {
+            'summary': 'Test task',
+            'description': '',
+            'issue_type': 'Task'
+        }
+        assert result == expected
 
 
 class TestQAItem:

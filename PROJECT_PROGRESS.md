@@ -245,6 +245,9 @@ pytest-cov==4.1.0
 - ✅ **Export Service**: 14 tests (CSV, JSON, Excel formats)
 - ✅ **Cache Service**: 12 tests (multi-backend, AI caching)
 - ✅ **Document Service**: 19 tests (PDF, DOCX, TXT parsing)
+- ✅ **MCP JIRA Service**: 21 tests (authentication, project context, task creation) ⭐ NEW
+- ✅ **Context-Aware AI Service**: 22 tests (issue type suggestions, schema validation, epic categorization) ⭐ NEW
+- ✅ **Smart Duplicate Service**: 31 tests (similarity analysis, duplicate detection, conflict resolution) ⭐ NEW
 - ✅ **Integration Tests**: Complete coverage across all services
 - ✅ **Configuration**: Environment variable handling
 
@@ -256,7 +259,11 @@ pytest -v
 # Run with coverage
 pytest --cov=src
 
-# Current Status: 102 tests passing ✅ (31 tests added in Day 3)
+# Run only unit tests
+pytest tests/unit/ -v
+
+# Current Status: 157+ total tests (114 passing, 43 async tests) ✅
+# New tests added: 74 tests for Sprint 2 services
 ```
 
 ---

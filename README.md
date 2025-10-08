@@ -136,7 +136,26 @@ pytest tests/unit/
 
 # Run with coverage
 pytest --cov=src
+
+# Run specific service tests
+pytest tests/unit/test_mcp_jira_service.py -v
+pytest tests/unit/test_context_aware_ai_service.py -v
+pytest tests/unit/test_smart_duplicate_service.py -v
 ```
+
+### Test Coverage
+- **157+ total tests** covering all services
+- **Model Validation**: 22 tests
+- **CSV Generation**: 12 tests  
+- **Context Service**: 11 tests
+- **Export Service**: 14 tests
+- **Cache Service**: 12 tests
+- **Document Service**: 19 tests
+- **MCP JIRA Service**: 21 tests ⭐ NEW
+- **Context-Aware AI**: 22 tests ⭐ NEW
+- **Smart Duplicate Detection**: 31 tests ⭐ NEW
+
+See [TEST_COVERAGE_SUMMARY.md](TEST_COVERAGE_SUMMARY.md) for detailed test documentation.
 
 ## Development
 
