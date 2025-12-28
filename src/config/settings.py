@@ -34,8 +34,17 @@ class JiraConfig:
     username: Optional[str] = None
     api_token: Optional[str] = None
     project_key: Optional[str] = None
+
+    # New JIRA behavior settings
+    timeout: int = 30
+    max_retries: int = 3
+    cache_ttl: int = 300
     similarity_threshold: float = 0.85
     max_search_results: int = 50
+    requests_per_minute: int = 50
+
+    # Security
+    encryption_key: Optional[str] = None
 
 
 @dataclass
@@ -105,8 +114,13 @@ class AppConfig:
         self.jira.username = os.getenv("JIRA_USERNAME", self.jira.username)
         self.jira.api_token = os.getenv("JIRA_API_TOKEN", self.jira.api_token)
         self.jira.project_key = os.getenv("JIRA_PROJECT_KEY", self.jira.project_key)
+        self.jira.timeout = int(os.getenv("JIRA_TIMEOUT", self.jira.timeout))
+        self.jira.max_retries = int(os.getenv("JIRA_MAX_RETRIES", self.jira.max_retries))
+        self.jira.cache_ttl = int(os.getenv("JIRA_CACHE_TTL", self.jira.cache_ttl))
         self.jira.similarity_threshold = float(os.getenv("JIRA_SIMILARITY_THRESHOLD", self.jira.similarity_threshold))
         self.jira.max_search_results = int(os.getenv("JIRA_MAX_SEARCH_RESULTS", self.jira.max_search_results))
+        self.jira.requests_per_minute = int(os.getenv("JIRA_REQUESTS_PER_MINUTE", self.jira.requests_per_minute))
+        self.jira.encryption_key = os.getenv("ENCRYPTION_KEY", self.jira.encryption_key)
 
         # Legacy JIRA configuration (for backward compatibility)
         self.default_reporter = os.getenv("DEFAULT_REPORTER", self.default_reporter)

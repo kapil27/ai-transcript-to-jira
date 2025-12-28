@@ -1,9 +1,11 @@
 """AI service abstraction for transcript analysis."""
 
-import requests
 import json
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import List, Dict, Any, Optional
+
+import requests
 
 from ..config import AppConfig
 from ..exceptions import AIServiceError, TranscriptError
@@ -126,9 +128,10 @@ class OllamaService(AIService):
         """Test if Ollama service is available."""
         try:
             self.logger.info("Testing Ollama connection")
-            test_response = self._call_ollama("Hello, just testing. Respond with 'OK'.", use_json_format=False)
-            is_connected = bool(test_response and 'OK' in test_response.upper())
-            self.logger.info(f"Ollama connection test: {'SUCCESS' if is_connected else 'FAILED'}")
+            test_response = self._call_ollama("Say OK", use_json_format=False)
+            # Just check if we got any valid response
+            is_connected = bool(test_response and len(test_response.strip()) > 0)
+            self.logger.info(f"Ollama connection test: {'SUCCESS' if is_connected else 'FAILED'} (response: {test_response[:50] if test_response else 'None'})")
             return is_connected
         except Exception as e:
             self.logger.error(f"Ollama connection test failed: {e}")
@@ -150,17 +153,20 @@ class OllamaService(AIService):
             payload["format"] = "json"
         
         try:
+            self.logger.debug(f"Calling Ollama at {self.api_url} with model {self.config.ollama.model_name}")
             response = requests.post(
                 self.api_url, 
                 json=payload, 
                 timeout=self.config.ollama.timeout
             )
+            self.logger.debug(f"Ollama response status: {response.status_code}")
             response.raise_for_status()
             
             result = response.json()
             return result.get('response', '')
             
         except requests.exceptions.RequestException as e:
+            self.logger.error(f"Ollama API call failed: {e}, URL: {self.api_url}, Payload: {payload}")
             raise AIServiceError(f"Ollama API call failed: {e}")
     
     def _create_task_extraction_prompt(self, text: str, context: str = "") -> str:
@@ -383,12 +389,14 @@ Use this context to enhance the task description and ensure proper categorizatio
                         task_data = self._parse_single_task(task_response)
                         if task_data:
                             all_tasks.append(task_data)
-                except:
+                except (json.JSONDecodeError, KeyError, AIServiceError) as e:
+                    self.logger.debug(f"Failed to parse task '{desc[:50]}...': {e}")
                     continue
 
             return self._validate_tasks(all_tasks)
 
-        except Exception:
+        except Exception as e:
+            self.logger.debug(f"Task extraction failed: {e}")
             return []
     
     @cached_ai_response("extract_qa_iteratively")
@@ -480,12 +488,14 @@ Use this additional context to provide richer background information and better 
                                 'status': 'answered' if qa_data.get('answer', '').strip() else 'unanswered'
                             }
                             all_qa.append(validated_qa)
-                except:
+                except (json.JSONDecodeError, KeyError, AIServiceError) as e:
+                    self.logger.debug(f"Failed to parse Q&A for '{question[:50]}...': {e}")
                     continue
 
             return all_qa
 
-        except Exception:
+        except Exception as e:
+            self.logger.debug(f"Q&A extraction failed: {e}")
             return []
     
     def _parse_ollama_response(self, response_text: str) -> List[Dict[str, Any]]:
@@ -527,7 +537,8 @@ Use this additional context to provide richer background information and better 
             task_data = json.loads(clean_text)
             return task_data if isinstance(task_data, dict) else None
             
-        except:
+        except (json.JSONDecodeError, TypeError, ValueError) as e:
+            self.logger.debug(f"Failed to parse task JSON: {e}")
             return None
     
     def _validate_tasks(self, tasks_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -569,13 +580,13 @@ Use this additional context to provide richer background information and better 
         return self.config.default_reporter
     
     def _validate_date(self, date_str: str) -> str:
-        """Validate date format."""
+        """Validate date format (YYYY-MM-DD)."""
         if not date_str or not date_str.strip():
             return ''
         
         try:
-            from datetime import datetime
             datetime.strptime(date_str.strip(), '%Y-%m-%d')
             return date_str.strip()
         except ValueError:
+            self.logger.debug(f"Invalid date format: {date_str}")
             return ''

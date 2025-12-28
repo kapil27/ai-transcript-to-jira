@@ -1,0 +1,526 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Enhanced JIRA Project Specification API",
+    "version": "1.0.0",
+    "description": "API for JIRA project integration with MCP-enhanced capabilities"
+  },
+  "paths": {
+    "/api/mcp/jira/connect": {
+      "post": {
+        "summary": "Test JIRA connection",
+        "description": "Verify JIRA credentials and establish connection",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JiraConnectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Connection successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed"
+          },
+          "500": {
+            "description": "Connection error"
+          }
+        }
+      }
+    },
+    "/api/mcp/jira/projects": {
+      "get": {
+        "summary": "List accessible JIRA projects",
+        "description": "Retrieve projects accessible to authenticated user",
+        "responses": {
+          "200": {
+            "description": "Projects retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp/jira/projects/{projectKey}/context": {
+      "get": {
+        "summary": "Get project context",
+        "description": "Retrieve comprehensive project metadata including sprints, epics, issue types",
+        "parameters": [
+          {
+            "name": "projectKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project context retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectContextResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp/jira/search/duplicates": {
+      "post": {
+        "summary": "Search for duplicate issues",
+        "description": "Find existing JIRA issues similar to proposed task",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DuplicateSearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Duplicate analysis completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateAnalysisResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp/jira/issues/create": {
+      "post": {
+        "summary": "Create JIRA issues",
+        "description": "Create one or more JIRA issues with project context validation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIssuesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Issues created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateIssuesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/process/enhanced": {
+      "post": {
+        "summary": "Process transcript with project context",
+        "description": "Extract tasks from transcript using selected JIRA project context",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnhancedProcessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Processing completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnhancedProcessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "JiraConnectionRequest": {
+        "type": "object",
+        "required": ["base_url", "username", "api_token"],
+        "properties": {
+          "base_url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://company.atlassian.net"
+          },
+          "username": {
+            "type": "string",
+            "format": "email",
+            "example": "user@company.com"
+          },
+          "api_token": {
+            "type": "string",
+            "example": "ATATT3xFfGF0..."
+          },
+          "connection_name": {
+            "type": "string",
+            "example": "Primary JIRA"
+          }
+        }
+      },
+      "ConnectionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "connection_id": {
+            "type": "string"
+          },
+          "server_info": {
+            "type": "object",
+            "properties": {
+              "version": {"type": "string"},
+              "deployment_type": {"type": "string"}
+            }
+          },
+          "user_info": {
+            "type": "object",
+            "properties": {
+              "display_name": {"type": "string"},
+              "email": {"type": "string"}
+            }
+          }
+        }
+      },
+      "ProjectsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectInfo"
+            }
+          }
+        }
+      },
+      "ProjectInfo": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "PROJ"
+          },
+          "name": {
+            "type": "string",
+            "example": "My Project"
+          },
+          "description": {
+            "type": "string"
+          },
+          "lead": {
+            "type": "string"
+          },
+          "project_type": {
+            "type": "string",
+            "enum": ["software", "business"]
+          }
+        }
+      },
+      "ProjectContextResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "project_context": {
+            "$ref": "#/components/schemas/ProjectContext"
+          }
+        }
+      },
+      "ProjectContext": {
+        "type": "object",
+        "properties": {
+          "project_key": {"type": "string"},
+          "project_name": {"type": "string"},
+          "project_description": {"type": "string"},
+          "active_sprints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SprintInfo"
+            }
+          },
+          "available_epics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EpicInfo"
+            }
+          },
+          "issue_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IssueTypeInfo"
+            }
+          },
+          "last_updated": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SprintInfo": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "name": {"type": "string"},
+          "state": {
+            "type": "string",
+            "enum": ["future", "active", "closed"]
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "goal": {"type": "string"}
+        }
+      },
+      "EpicInfo": {
+        "type": "object",
+        "properties": {
+          "key": {"type": "string"},
+          "summary": {"type": "string"},
+          "description": {"type": "string"},
+          "status": {"type": "string"},
+          "assignee": {"type": "string"}
+        }
+      },
+      "IssueTypeInfo": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "is_subtask": {"type": "boolean"},
+          "fields": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "DuplicateSearchRequest": {
+        "type": "object",
+        "required": ["project_key", "task_content"],
+        "properties": {
+          "project_key": {"type": "string"},
+          "task_content": {
+            "type": "object",
+            "properties": {
+              "summary": {"type": "string"},
+              "description": {"type": "string"}
+            }
+          },
+          "similarity_threshold": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "default": 0.85
+          }
+        }
+      },
+      "DuplicateAnalysisResponse": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "analysis": {
+            "$ref": "#/components/schemas/DuplicateAnalysis"
+          }
+        }
+      },
+      "DuplicateAnalysis": {
+        "type": "object",
+        "properties": {
+          "similar_issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SimilarIssue"
+            }
+          },
+          "best_match": {
+            "$ref": "#/components/schemas/SimilarIssue"
+          },
+          "confidence": {"type": "number"},
+          "recommended_action": {
+            "type": "string",
+            "enum": ["create_new", "likely_duplicate", "review_required", "consider_linking"]
+          }
+        }
+      },
+      "SimilarIssue": {
+        "type": "object",
+        "properties": {
+          "issue_key": {"type": "string"},
+          "summary": {"type": "string"},
+          "description": {"type": "string"},
+          "status": {"type": "string"},
+          "assignee": {"type": "string"},
+          "similarity_score": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          },
+          "match_type": {
+            "type": "string",
+            "enum": ["identical", "very_similar", "similar", "related"]
+          }
+        }
+      },
+      "EnhancedProcessRequest": {
+        "type": "object",
+        "required": ["transcript", "project_key"],
+        "properties": {
+          "transcript": {"type": "string"},
+          "project_key": {"type": "string"},
+          "context": {"type": "string"},
+          "check_duplicates": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "EnhancedProcessResponse": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "session_id": {"type": "string"},
+          "extracted_tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnhancedTask"
+            }
+          },
+          "qa_items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "project_context": {
+            "$ref": "#/components/schemas/ProjectContext"
+          }
+        }
+      },
+      "EnhancedTask": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "summary": {"type": "string"},
+          "description": {"type": "string"},
+          "project_key": {"type": "string"},
+          "suggestions": {
+            "$ref": "#/components/schemas/TaskSuggestion"
+          },
+          "duplicate_analysis": {
+            "$ref": "#/components/schemas/DuplicateAnalysis"
+          },
+          "confidence_score": {"type": "number"},
+          "extracted_from": {"type": "string"}
+        }
+      },
+      "TaskSuggestion": {
+        "type": "object",
+        "properties": {
+          "issue_type": {"type": "string"},
+          "epic_key": {"type": "string"},
+          "sprint_id": {"type": "integer"},
+          "priority": {"type": "string"},
+          "confidence": {"type": "number"},
+          "reasoning": {"type": "string"}
+        }
+      },
+      "CreateIssuesRequest": {
+        "type": "object",
+        "required": ["project_key", "tasks"],
+        "properties": {
+          "project_key": {"type": "string"},
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnhancedTask"
+            }
+          },
+          "session_id": {"type": "string"}
+        }
+      },
+      "CreateIssuesResponse": {
+        "type": "object",
+        "properties": {
+          "success": {"type": "boolean"},
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IssueCreationResult"
+            }
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "total": {"type": "integer"},
+              "created": {"type": "integer"},
+              "failed": {"type": "integer"},
+              "skipped": {"type": "integer"}
+            }
+          }
+        }
+      },
+      "IssueCreationResult": {
+        "type": "object",
+        "properties": {
+          "task_id": {"type": "string"},
+          "status": {
+            "type": "string",
+            "enum": ["created", "failed", "skipped", "duplicate"]
+          },
+          "jira_key": {"type": "string"},
+          "jira_url": {"type": "string"},
+          "error_message": {"type": "string"}
+        }
+      }
+    }
+  }
+}

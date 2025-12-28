@@ -5,7 +5,11 @@ from typing import Dict, Any
 
 from ..config import get_config
 from ..services import TranscriptAnalysisService, CSVGenerationService, ContextService, ExportService, CacheService, DocumentParsingService
-from ..exceptions import TranscriptError, AIServiceError, CSVGenerationError, ValidationError, ExportError
+from ..services.mcp_jira_service import MCPJiraService
+from ..exceptions import (
+    TranscriptError, AIServiceError, CSVGenerationError, ValidationError, ExportError,
+    JiraIntegrationError, JiraConnectionError, JiraAuthenticationError, ProjectContextError
+)
 from ..utils import LoggerMixin
 
 
@@ -21,6 +25,7 @@ class APIRoutes(LoggerMixin):
         self.export_service = ExportService()
         self.cache_service = CacheService()
         self.document_service = DocumentParsingService()
+        self.jira_service = MCPJiraService(self.config)
         self.blueprint = self._create_blueprint()
     
     def _create_blueprint(self) -> Blueprint:
@@ -62,7 +67,17 @@ class APIRoutes(LoggerMixin):
         api.add_url_rule('/upload/parse', 'parse_document', self.parse_document, methods=['POST'])
         api.add_url_rule('/upload/process', 'process_document', self.process_document, methods=['POST'])
         api.add_url_rule('/upload/formats', 'get_supported_formats', self.get_supported_formats, methods=['GET'])
-        
+
+        # JIRA integration endpoints
+        api.add_url_rule('/jira/connections', 'get_jira_connections', self.get_jira_connections, methods=['GET'])
+        api.add_url_rule('/jira/connections', 'create_jira_connection', self.create_jira_connection, methods=['POST'])
+        api.add_url_rule('/jira/connections/<connection_id>/activate', 'activate_jira_connection', self.activate_jira_connection, methods=['POST'])
+        api.add_url_rule('/jira/projects', 'get_jira_projects', self.get_jira_projects, methods=['GET'])
+        api.add_url_rule('/jira/projects/<project_key>/context', 'get_project_context', self.get_project_context, methods=['GET'])
+        api.add_url_rule('/jira/projects/<project_key>/duplicates', 'analyze_duplicates', self.analyze_duplicates, methods=['POST'])
+        api.add_url_rule('/jira/projects/<project_key>/tasks', 'create_jira_tasks', self.create_jira_tasks, methods=['POST'])
+        api.add_url_rule('/jira/status', 'get_jira_status', self.get_jira_status, methods=['GET'])
+
         return api
     
     def health_check(self) -> Dict[str, Any]:
@@ -499,6 +514,271 @@ class APIRoutes(LoggerMixin):
         except Exception as e:
             self.logger.error(f"Error getting supported formats: {e}")
             return jsonify({'error': 'Failed to get supported formats'}), 500
+
+    # JIRA Integration Endpoints
+
+    def get_jira_connections(self) -> Dict[str, Any]:
+        """Get list of available JIRA connections."""
+        try:
+            import asyncio
+            connections = asyncio.run(self.jira_service.get_available_connections())
+
+            connection_data = []
+            for conn in connections:
+                connection_data.append({
+                    'id': conn.id,
+                    'name': conn.name,
+                    'base_url': conn.base_url,
+                    'validation_status': conn.validation_status,
+                    'last_validated': conn.last_validated.isoformat() if conn.last_validated else None,
+                    'is_active': True
+                })
+
+            return jsonify({
+                'success': True,
+                'connections': connection_data
+            })
+
+        except Exception as e:
+            self.logger.error(f"Error getting JIRA connections: {e}")
+            return jsonify({'error': 'Failed to get JIRA connections'}), 500
+
+    def create_jira_connection(self) -> Dict[str, Any]:
+        """Create a new JIRA connection."""
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Request data is required'}), 400
+
+            required_fields = ['name', 'base_url', 'username', 'api_token']
+            for field in required_fields:
+                if field not in data:
+                    return jsonify({'error': f'{field} is required'}), 400
+
+            import asyncio
+            connection = asyncio.run(self.jira_service.create_jira_connection(
+                name=data['name'],
+                base_url=data['base_url'],
+                username=data['username'],
+                api_token=data['api_token']
+            ))
+
+            return jsonify({
+                'success': True,
+                'connection': {
+                    'id': connection.id,
+                    'name': connection.name,
+                    'base_url': connection.base_url,
+                    'validation_status': connection.validation_status,
+                    'created_at': connection.created_at.isoformat()
+                },
+                'message': 'JIRA connection created successfully'
+            })
+
+        except JiraAuthenticationError as e:
+            self.logger.error(f"JIRA authentication error: {e}")
+            return jsonify({'error': 'JIRA authentication failed. Please check your credentials.'}), 401
+        except JiraConnectionError as e:
+            self.logger.error(f"JIRA connection error: {e}")
+            return jsonify({'error': 'JIRA connection failed. Please check your JIRA URL.'}), 400
+        except Exception as e:
+            self.logger.error(f"Error creating JIRA connection: {e}")
+            return jsonify({'error': 'Failed to create JIRA connection'}), 500
+
+    def activate_jira_connection(self, connection_id: str) -> Dict[str, Any]:
+        """Activate a JIRA connection."""
+        try:
+            import asyncio
+            success = asyncio.run(self.jira_service.activate_connection(connection_id))
+
+            return jsonify({
+                'success': success,
+                'connection_id': connection_id,
+                'message': 'JIRA connection activated successfully' if success else 'Failed to activate connection'
+            })
+
+        except JiraAuthenticationError as e:
+            self.logger.error(f"JIRA activation authentication error: {e}")
+            return jsonify({'error': 'Authentication failed during connection activation'}), 401
+        except JiraConnectionError as e:
+            self.logger.error(f"JIRA activation connection error: {e}")
+            return jsonify({'error': 'Connection activation failed'}), 400
+        except Exception as e:
+            self.logger.error(f"Error activating JIRA connection: {e}")
+            return jsonify({'error': 'Failed to activate JIRA connection'}), 500
+
+    def get_jira_projects(self) -> Dict[str, Any]:
+        """Get list of available JIRA projects."""
+        try:
+            import asyncio
+            projects = asyncio.run(self.jira_service.get_enriched_projects())
+
+            return jsonify({
+                'success': True,
+                'projects': projects,
+                'count': len(projects)
+            })
+
+        except JiraConnectionError as e:
+            self.logger.error(f"JIRA connection error: {e}")
+            return jsonify({'error': 'No active JIRA connection. Please activate a connection first.'}), 400
+        except Exception as e:
+            self.logger.error(f"Error getting JIRA projects: {e}")
+            return jsonify({'error': 'Failed to get JIRA projects'}), 500
+
+    def get_project_context(self, project_key: str) -> Dict[str, Any]:
+        """Get comprehensive project context for a JIRA project."""
+        try:
+            import asyncio
+            context = asyncio.run(self.jira_service.get_project_context(project_key))
+
+            return jsonify({
+                'success': True,
+                'project_key': project_key,
+                'context': context.to_dict()
+            })
+
+        except JiraConnectionError as e:
+            self.logger.error(f"JIRA connection error: {e}")
+            return jsonify({'error': 'No active JIRA connection. Please activate a connection first.'}), 400
+        except ProjectContextError as e:
+            self.logger.error(f"Project context error: {e}")
+            return jsonify({'error': f'Failed to get project context: {str(e)}'}), 404
+        except Exception as e:
+            self.logger.error(f"Error getting project context: {e}")
+            return jsonify({'error': 'Failed to get project context'}), 500
+
+    def analyze_duplicates(self, project_key: str) -> Dict[str, Any]:
+        """Analyze potential duplicates for tasks in a project."""
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Request data is required'}), 400
+
+            required_fields = ['task_id', 'summary', 'description']
+            for field in required_fields:
+                if field not in data:
+                    return jsonify({'error': f'{field} is required'}), 400
+
+            import asyncio
+            analysis = asyncio.run(self.jira_service.search_similar_tasks(
+                task_id=data['task_id'],
+                project_key=project_key,
+                task_summary=data['summary'],
+                task_description=data['description']
+            ))
+
+            return jsonify({
+                'success': True,
+                'analysis': analysis.to_dict()
+            })
+
+        except JiraConnectionError as e:
+            self.logger.error(f"JIRA connection error: {e}")
+            return jsonify({'error': 'No active JIRA connection. Please activate a connection first.'}), 400
+        except Exception as e:
+            self.logger.error(f"Error analyzing duplicates: {e}")
+            return jsonify({'error': 'Failed to analyze duplicates'}), 500
+
+    def create_jira_tasks(self, project_key: str) -> Dict[str, Any]:
+        """Create JIRA tasks in the specified project."""
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Request data is required'}), 400
+
+            tasks = data.get('tasks', [])
+            if not tasks:
+                return jsonify({'error': 'Tasks data is required'}), 400
+
+            import asyncio
+
+            # Get project context for task enhancement
+            context = asyncio.run(self.jira_service.get_project_context(project_key))
+
+            created_tasks = []
+            errors = []
+
+            for task in tasks:
+                try:
+                    # Create enhanced task with context
+                    enhanced_task = asyncio.run(self.jira_service.create_context_aware_task(
+                        project_key=project_key,
+                        task_data=task,
+                        context=context
+                    ))
+                    created_tasks.append(enhanced_task)
+                except Exception as task_error:
+                    self.logger.error(f"Failed to create task {task.get('summary', 'unknown')}: {task_error}")
+                    errors.append({
+                        'task': task.get('summary', 'unknown'),
+                        'error': str(task_error)
+                    })
+
+            return jsonify({
+                'success': len(created_tasks) > 0,
+                'created_count': len(created_tasks),
+                'error_count': len(errors),
+                'created_tasks': created_tasks,
+                'errors': errors
+            })
+
+        except JiraConnectionError as e:
+            self.logger.error(f"JIRA connection error: {e}")
+            return jsonify({'error': 'No active JIRA connection. Please activate a connection first.'}), 400
+        except ProjectContextError as e:
+            self.logger.error(f"Project context error: {e}")
+            return jsonify({'error': f'Failed to get project context: {str(e)}'}), 404
+        except Exception as e:
+            self.logger.error(f"Error creating JIRA tasks: {e}")
+            return jsonify({'error': 'Failed to create JIRA tasks'}), 500
+
+    def get_jira_status(self) -> Dict[str, Any]:
+        """Get JIRA integration status and health information."""
+        try:
+            import asyncio
+
+            # Initialize MCP client if not already done
+            mcp_status = False
+            try:
+                mcp_status = asyncio.run(self.jira_service.initialize_mcp_client())
+            except Exception as e:
+                self.logger.warning(f"MCP client initialization failed: {e}")
+
+            # Get available connections
+            connections = asyncio.run(self.jira_service.get_available_connections())
+
+            status = {
+                'success': True,
+                'jira_integration': {
+                    'mcp_client_status': 'connected' if mcp_status else 'disconnected',
+                    'available_connections': len(connections),
+                    'active_connection': self.jira_service._current_connection_id,
+                    'connections': [
+                        {
+                            'id': conn.id,
+                            'name': conn.name,
+                            'validation_status': conn.validation_status
+                        }
+                        for conn in connections
+                    ]
+                },
+                'services': {
+                    'mcp_jira_service': 'available',
+                    'database': 'available',
+                    'cache': 'available',
+                    'encryption': 'available'
+                }
+            }
+
+            return jsonify(status)
+
+        except Exception as e:
+            self.logger.error(f"Error getting JIRA status: {e}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to get JIRA integration status'
+            }), 500
 
 
 def create_api_blueprint() -> Blueprint:

@@ -1,0 +1,387 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ai-transcript-jira.com/schemas/project-context.json",
+  "title": "JIRA Project Context",
+  "description": "Comprehensive metadata about a JIRA project for AI-enhanced task creation",
+  "type": "object",
+  "required": ["project_key", "project_name", "last_updated"],
+  "properties": {
+    "project_key": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]{1,9}$",
+      "description": "JIRA project key (2-10 uppercase alphanumeric characters)",
+      "examples": ["PROJ", "DEV", "SUPPORT"]
+    },
+    "project_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "Human-readable project name"
+    },
+    "project_description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Project description for context understanding"
+    },
+    "project_lead": {
+      "type": "string",
+      "format": "email",
+      "description": "Project lead email address"
+    },
+    "project_category": {
+      "type": "string",
+      "enum": ["software", "business", "service_desk"],
+      "description": "Type of JIRA project"
+    },
+    "active_sprints": {
+      "type": "array",
+      "description": "Currently active or upcoming sprints",
+      "items": {
+        "$ref": "#/definitions/SprintInfo"
+      },
+      "maxItems": 5
+    },
+    "available_epics": {
+      "type": "array",
+      "description": "Open epics available for task linking",
+      "items": {
+        "$ref": "#/definitions/EpicInfo"
+      },
+      "maxItems": 50
+    },
+    "issue_types": {
+      "type": "array",
+      "description": "Issue types configured for this project",
+      "items": {
+        "$ref": "#/definitions/IssueTypeInfo"
+      },
+      "minItems": 1
+    },
+    "workflows": {
+      "type": "object",
+      "description": "Workflow configurations by issue type",
+      "patternProperties": {
+        "^[A-Za-z0-9 ]+$": {
+          "$ref": "#/definitions/WorkflowInfo"
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "description": "Project components for categorization",
+      "items": {
+        "$ref": "#/definitions/ComponentInfo"
+      }
+    },
+    "custom_fields": {
+      "type": "object",
+      "description": "Custom field definitions",
+      "patternProperties": {
+        "^customfield_[0-9]+$": {
+          "$ref": "#/definitions/CustomFieldInfo"
+        }
+      }
+    },
+    "permissions": {
+      "$ref": "#/definitions/ProjectPermissions",
+      "description": "User permissions in this project"
+    },
+    "cache_metadata": {
+      "$ref": "#/definitions/CacheMetadata",
+      "description": "Cache timing and validity information"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this context was last fetched from JIRA"
+    }
+  },
+  "definitions": {
+    "SprintInfo": {
+      "type": "object",
+      "required": ["id", "name", "state"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "state": {
+          "type": "string",
+          "enum": ["future", "active", "closed"]
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "goal": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "board_id": {
+          "type": "integer"
+        },
+        "capacity": {
+          "type": "object",
+          "properties": {
+            "total_story_points": {"type": "number"},
+            "committed_story_points": {"type": "number"},
+            "team_capacity": {"type": "number"}
+          }
+        }
+      }
+    },
+    "EpicInfo": {
+      "type": "object",
+      "required": ["key", "summary", "status"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]{1,9}-[0-9]+$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 5000
+        },
+        "status": {
+          "type": "string"
+        },
+        "assignee": {
+          "type": "string",
+          "format": "email"
+        },
+        "epic_color": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "story_points_total": {
+          "type": "number",
+          "minimum": 0
+        },
+        "story_points_completed": {
+          "type": "number",
+          "minimum": 0
+        },
+        "target_sprint": {
+          "type": "string"
+        }
+      }
+    },
+    "IssueTypeInfo": {
+      "type": "object",
+      "required": ["id", "name", "is_subtask"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "examples": ["Story", "Task", "Bug", "Epic", "Subtask"]
+        },
+        "description": {
+          "type": "string"
+        },
+        "is_subtask": {
+          "type": "boolean"
+        },
+        "icon_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "fields": {
+          "type": "object",
+          "description": "Field schema for this issue type",
+          "properties": {
+            "required": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "optional": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "WorkflowInfo": {
+      "type": "object",
+      "required": ["name", "statuses"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name"],
+            "properties": {
+              "id": {"type": "string"},
+              "name": {"type": "string"},
+              "category": {
+                "type": "string",
+                "enum": ["new", "indeterminate", "done"]
+              }
+            }
+          }
+        },
+        "transitions": {
+          "type": "object",
+          "description": "Valid transitions between statuses",
+          "patternProperties": {
+            "^.*$": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "ComponentInfo": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "lead": {
+          "type": "string",
+          "format": "email"
+        },
+        "assignee_type": {
+          "type": "string",
+          "enum": ["PROJECT_DEFAULT", "COMPONENT_LEAD", "PROJECT_LEAD", "UNASSIGNED"]
+        }
+      }
+    },
+    "CustomFieldInfo": {
+      "type": "object",
+      "required": ["id", "name", "type"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^customfield_[0-9]+$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "date", "datetime", "user", "option", "array", "object"]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "allowed_values": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "default_value": {
+          "type": ["string", "number", "boolean", "null"]
+        }
+      }
+    },
+    "ProjectPermissions": {
+      "type": "object",
+      "properties": {
+        "can_create_issues": {"type": "boolean"},
+        "can_edit_issues": {"type": "boolean"},
+        "can_assign_issues": {"type": "boolean"},
+        "can_transition_issues": {"type": "boolean"},
+        "can_view_workflow": {"type": "boolean"},
+        "can_manage_sprints": {"type": "boolean"},
+        "accessible_issue_types": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "CacheMetadata": {
+      "type": "object",
+      "required": ["created_at", "expires_at"],
+      "properties": {
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "cache_key": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["jira_api", "mcp_server", "cache"]
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "project_key": "DEV",
+      "project_name": "Development Project",
+      "project_description": "Main development project for application features",
+      "project_lead": "lead@company.com",
+      "project_category": "software",
+      "active_sprints": [
+        {
+          "id": 123,
+          "name": "Sprint 45",
+          "state": "active",
+          "start_date": "2024-12-20T00:00:00Z",
+          "end_date": "2025-01-03T00:00:00Z",
+          "goal": "Complete user authentication feature",
+          "board_id": 1
+        }
+      ],
+      "available_epics": [
+        {
+          "key": "DEV-100",
+          "summary": "User Authentication System",
+          "status": "In Progress",
+          "assignee": "dev@company.com",
+          "epic_color": "#42526e"
+        }
+      ],
+      "issue_types": [
+        {
+          "id": "10001",
+          "name": "Story",
+          "description": "User story",
+          "is_subtask": false,
+          "fields": {
+            "required": ["summary", "description"],
+            "optional": ["assignee", "priority", "epic"]
+          }
+        }
+      ],
+      "last_updated": "2024-12-28T10:00:00Z"
+    }
+  ]
+}

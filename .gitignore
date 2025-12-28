@@ -125,3 +125,12 @@ test_output.csv
 test_ollama_output.csv
 *.csv
 !docs/examples/*.csv
+
+# Claude Code agent folder (may contain credentials)
+.claude/
+
+# JIRA Integration files
+jira_credentials.json
+jira_connection_*.json
+*_jira_backup.json
+.jira_cache/

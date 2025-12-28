@@ -1,0 +1,471 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ai-transcript-jira.com/schemas/duplicate-detection.json",
+  "title": "Duplicate Detection Schema",
+  "description": "Schema for duplicate issue detection and similarity analysis",
+  "type": "object",
+  "required": ["task_id", "project_key", "analysis_results"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "Unique identifier for the task being analyzed"
+    },
+    "project_key": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]{1,9}$",
+      "description": "JIRA project key where duplicates are searched"
+    },
+    "search_query": {
+      "type": "string",
+      "description": "JQL query used for initial duplicate search",
+      "maxLength": 500
+    },
+    "analysis_results": {
+      "$ref": "#/definitions/DuplicateAnalysisResults"
+    },
+    "configuration": {
+      "$ref": "#/definitions/AnalysisConfiguration"
+    },
+    "metadata": {
+      "$ref": "#/definitions/AnalysisMetadata"
+    }
+  },
+  "definitions": {
+    "DuplicateAnalysisResults": {
+      "type": "object",
+      "required": ["similar_issues", "confidence", "recommended_action"],
+      "properties": {
+        "similar_issues": {
+          "type": "array",
+          "description": "List of potentially duplicate issues found",
+          "items": {
+            "$ref": "#/definitions/SimilarIssue"
+          },
+          "maxItems": 20
+        },
+        "best_match": {
+          "$ref": "#/definitions/SimilarIssue",
+          "description": "Highest scoring similar issue"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Overall confidence in duplicate detection results"
+        },
+        "recommended_action": {
+          "type": "string",
+          "enum": ["create_new", "likely_duplicate", "review_required", "consider_linking"],
+          "description": "AI recommendation for how to handle potential duplicates"
+        },
+        "reasoning": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Explanation for the recommended action"
+        },
+        "summary_statistics": {
+          "$ref": "#/definitions/SummaryStatistics"
+        }
+      }
+    },
+    "SimilarIssue": {
+      "type": "object",
+      "required": ["issue_key", "summary", "similarity_scores", "match_type"],
+      "properties": {
+        "issue_key": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]{1,9}-[0-9]+$",
+          "description": "JIRA issue key"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "description": "Issue summary/title"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 5000,
+          "description": "Issue description"
+        },
+        "status": {
+          "type": "string",
+          "description": "Current issue status"
+        },
+        "assignee": {
+          "type": "string",
+          "format": "email",
+          "description": "Current assignee"
+        },
+        "priority": {
+          "type": "string",
+          "description": "Issue priority"
+        },
+        "issue_type": {
+          "type": "string",
+          "description": "Type of issue (Story, Bug, Task, etc.)"
+        },
+        "created_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "similarity_scores": {
+          "$ref": "#/definitions/SimilarityScores"
+        },
+        "match_type": {
+          "type": "string",
+          "enum": ["identical", "very_similar", "similar", "related", "weak"],
+          "description": "Classification of similarity level"
+        },
+        "context_factors": {
+          "$ref": "#/definitions/ContextFactors"
+        },
+        "jira_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Direct link to the JIRA issue"
+        }
+      }
+    },
+    "SimilarityScores": {
+      "type": "object",
+      "required": ["overall_score"],
+      "properties": {
+        "overall_score": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Weighted overall similarity score"
+        },
+        "title_similarity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Similarity score for issue titles/summaries"
+        },
+        "content_similarity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Similarity score for issue descriptions"
+        },
+        "semantic_similarity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Semantic meaning similarity score"
+        },
+        "context_similarity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Project context similarity (epic, component, etc.)"
+        },
+        "keyword_overlap": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Keyword overlap ratio"
+        },
+        "scoring_algorithm": {
+          "type": "string",
+          "enum": ["fuzzy_match", "semantic_embedding", "tfidf", "hybrid"],
+          "description": "Primary algorithm used for similarity calculation"
+        }
+      }
+    },
+    "ContextFactors": {
+      "type": "object",
+      "properties": {
+        "same_epic": {
+          "type": "boolean",
+          "description": "Whether both issues belong to the same epic"
+        },
+        "same_component": {
+          "type": "boolean",
+          "description": "Whether both issues belong to the same component"
+        },
+        "same_sprint": {
+          "type": "boolean",
+          "description": "Whether both issues are in the same sprint"
+        },
+        "same_assignee": {
+          "type": "boolean",
+          "description": "Whether both issues have the same assignee"
+        },
+        "same_issue_type": {
+          "type": "boolean",
+          "description": "Whether both issues are the same type"
+        },
+        "temporal_proximity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "How close in time the issues were created (1.0 = same day)"
+        },
+        "reporter_relationship": {
+          "type": "string",
+          "enum": ["same", "team_member", "different_team", "external"],
+          "description": "Relationship between issue reporters"
+        }
+      }
+    },
+    "AnalysisConfiguration": {
+      "type": "object",
+      "properties": {
+        "similarity_threshold": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.85,
+          "description": "Minimum similarity score to flag as potential duplicate"
+        },
+        "max_search_results": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 50,
+          "description": "Maximum number of issues to analyze for duplicates"
+        },
+        "search_time_window": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 365,
+          "default": 90,
+          "description": "Number of days back to search for duplicates"
+        },
+        "include_closed_issues": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to include closed/resolved issues in duplicate search"
+        },
+        "weight_factors": {
+          "$ref": "#/definitions/WeightFactors"
+        },
+        "algorithm_preferences": {
+          "type": "object",
+          "properties": {
+            "primary_algorithm": {
+              "type": "string",
+              "enum": ["fuzzy_match", "semantic_embedding", "tfidf", "hybrid"]
+            },
+            "fallback_algorithm": {
+              "type": "string",
+              "enum": ["fuzzy_match", "semantic_embedding", "tfidf"]
+            }
+          }
+        }
+      }
+    },
+    "WeightFactors": {
+      "type": "object",
+      "description": "Relative weights for different similarity components",
+      "properties": {
+        "title_weight": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.4
+        },
+        "content_weight": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.3
+        },
+        "context_weight": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.2
+        },
+        "temporal_weight": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.1
+        }
+      }
+    },
+    "SummaryStatistics": {
+      "type": "object",
+      "properties": {
+        "total_issues_searched": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "potential_duplicates_found": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "highest_similarity_score": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "average_similarity_score": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "analysis_time_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_hit": {
+          "type": "boolean",
+          "description": "Whether results were served from cache"
+        }
+      }
+    },
+    "AnalysisMetadata": {
+      "type": "object",
+      "required": ["analyzed_at", "version"],
+      "properties": {
+        "analyzed_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the analysis was performed"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Version of the duplicate detection algorithm"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Processing session identifier"
+        },
+        "user_id": {
+          "type": "string",
+          "description": "User who initiated the analysis"
+        },
+        "resolution": {
+          "$ref": "#/definitions/UserResolution"
+        },
+        "performance_metrics": {
+          "$ref": "#/definitions/PerformanceMetrics"
+        }
+      }
+    },
+    "UserResolution": {
+      "type": "object",
+      "description": "User's decision on how to handle duplicate suggestions",
+      "properties": {
+        "action_taken": {
+          "type": "string",
+          "enum": ["create_new", "link_to_existing", "merge_with_existing", "skip_creation"],
+          "description": "Final action chosen by user"
+        },
+        "selected_issue": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]{1,9}-[0-9]+$",
+          "description": "JIRA key of issue selected for linking/merging"
+        },
+        "user_reasoning": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "User's explanation for their decision"
+        },
+        "resolved_by": {
+          "type": "string",
+          "format": "email",
+          "description": "User who made the resolution decision"
+        },
+        "resolved_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the resolution was made"
+        },
+        "confidence_in_decision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "User's confidence level in their decision (1-5 scale)"
+        }
+      }
+    },
+    "PerformanceMetrics": {
+      "type": "object",
+      "properties": {
+        "jira_api_calls": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of JIRA API calls made"
+        },
+        "cache_lookups": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of cache lookups performed"
+        },
+        "processing_time_breakdown": {
+          "type": "object",
+          "properties": {
+            "search_time_ms": {"type": "integer"},
+            "similarity_calculation_ms": {"type": "integer"},
+            "ranking_time_ms": {"type": "integer"},
+            "total_time_ms": {"type": "integer"}
+          }
+        },
+        "memory_usage_mb": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Peak memory usage during analysis"
+        },
+        "algorithm_efficiency": {
+          "type": "object",
+          "properties": {
+            "comparisons_made": {"type": "integer"},
+            "comparisons_per_second": {"type": "number"}
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "task_id": "task_123",
+      "project_key": "DEV",
+      "search_query": "text ~ \"login bug\" AND project = DEV AND status != Closed",
+      "analysis_results": {
+        "similar_issues": [
+          {
+            "issue_key": "DEV-456",
+            "summary": "Login authentication failure on mobile",
+            "status": "In Progress",
+            "assignee": "dev@company.com",
+            "similarity_scores": {
+              "overall_score": 0.87,
+              "title_similarity": 0.9,
+              "content_similarity": 0.85,
+              "context_similarity": 0.8
+            },
+            "match_type": "very_similar",
+            "context_factors": {
+              "same_epic": true,
+              "same_component": false,
+              "temporal_proximity": 0.9
+            }
+          }
+        ],
+        "confidence": 0.87,
+        "recommended_action": "review_required",
+        "reasoning": "High similarity found with existing login-related issue"
+      },
+      "configuration": {
+        "similarity_threshold": 0.85,
+        "max_search_results": 50,
+        "include_closed_issues": false
+      },
+      "metadata": {
+        "analyzed_at": "2024-12-28T10:30:00Z",
+        "version": "v1.2.1",
+        "session_id": "session_abc123"
+      }
+    }
+  ]
+}
